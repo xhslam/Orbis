@@ -1,9 +1,9 @@
 {
-  "name": "mochi",
-  "productName": "Mochi",
+  "name": "orbis",
+  "productName": "Orbis",
   "version": "0.1.20",
   "private": true,
-  "description": "A realtime-voice AI companion that lives on your desktop",
+  "description": "A realtime-voice AI companion and reading tool that lives on your desktop",
   "author": "@xiaolai",
   "license": "MIT",
   "repository": {
@@ -42,6 +42,7 @@
   "devDependencies": {
     "@napi-rs/canvas": "^1.0.6",
     "@types/node": "^26.1.2",
+    "@types/pdf-parse": "^1.1.5",
     "@vitest/coverage-v8": "^4.1.10",
     "electron": "^43.3.0",
     "electron-builder": "^26.15.3",
@@ -56,6 +57,7 @@
   },
   "main": "./out/main/index.js",
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "pdf-parse": "^2.4.5"
   }
 }

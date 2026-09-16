@@ -73,7 +73,10 @@ const guardSettings = guarding('settings', isSettingsChannel)
  * not of the missing one, which is the same hole with a different shape. Her
  * own window now passes the argument like the other two.
  */
-const role = process.argv.find((one) => one.startsWith('--mochi-role='))?.slice(13) ?? ''
+const role =
+  process.argv.find((one) => one.startsWith('--orbis-role='))?.slice(13) ??
+  process.argv.find((one) => one.startsWith('--mochi-role='))?.slice(13) ??
+  ''
 
 /**
  * Exactly the roles this application constructs. Anything else gets NOTHING.
@@ -322,6 +325,9 @@ if (!ROLES.has(role)) {
   */
   contextBridge.exposeInMainWorld('mochiHistory', history)
   contextBridge.exposeInMainWorld('mochiSettings', settings)
+  contextBridge.exposeInMainWorld('orbisHistory', history)
+  contextBridge.exposeInMainWorld('orbisSettings', settings)
 } else {
   contextBridge.exposeInMainWorld('mochi', api)
+  contextBridge.exposeInMainWorld('orbis', api)
 }

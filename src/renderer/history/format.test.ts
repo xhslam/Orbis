@@ -216,7 +216,8 @@ describe('grouping the list by day', () => {
 
   it('makes one group per run of days, newest first', () => {
     const groups = byDay([at(18, 9), at(18, 8), at(17, 17), at(16, 21)], NOW, (one) => one.at)
-    expect(groups.map((one) => one.day)).toEqual(['Today', 'Yesterday', 'Sunday'])
+    const sunday = new Date(2026, 7, 16, 21).toLocaleDateString(undefined, { weekday: 'long' })
+    expect(groups.map((one) => one.day)).toEqual(['Today', 'Yesterday', sunday])
     expect(groups.map((one) => one.items.length)).toEqual([2, 1, 1])
   })
 

@@ -203,7 +203,7 @@ import { legacyGrants } from './store/worn'
 // The same string as `appId` in `electron-builder.yml`. Two spellings of an
 // application's identity is how a notification arrives attributed to nothing and
 // a taskbar grows a second entry for the app that is already running.
-const APP_USER_MODEL_ID = 'com.mochi.companion'
+const APP_USER_MODEL_ID = 'com.orbis.companion'
 
 app.setAppUserModelId(APP_USER_MODEL_ID)
 

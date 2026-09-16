@@ -36,11 +36,11 @@
 # which is outward-facing and is the user's call to make, not a side effect of
 # running a build script.
 
-appId: com.mochi.companion
+appId: com.orbis.companion
 # The SAME string as `APP_USER_MODEL_ID` in `main/index.ts`. Two spellings of an
 # application's identity is how a notification arrives attributed to nothing and
 # a Windows taskbar groups it under its own second entry.
-productName: Mochi
+productName: Orbis
 copyright: © HANDO K.K.
 
 directories:

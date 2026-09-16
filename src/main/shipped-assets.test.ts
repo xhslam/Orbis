@@ -40,8 +40,12 @@ function read(relative: string): string {
 /** Every file under `resources/`, as `folder/file.png`. */
 function shipped(): readonly string[] {
   const found: string[] = []
-  for (const folder of readdirSync(ROOT + 'resources')) {
-    for (const file of readdirSync(`${ROOT}resources/${folder}`)) found.push(`${folder}/${file}`)
+  for (const folder of readdirSync(ROOT + 'resources', { withFileTypes: true })) {
+    if (!folder.isDirectory()) continue
+    for (const file of readdirSync(`${ROOT}resources/${folder.name}`)) {
+      if (file.startsWith('.')) continue
+      found.push(`${folder.name}/${file}`)
+    }
   }
   return found
 }
