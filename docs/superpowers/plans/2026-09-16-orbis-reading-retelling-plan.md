@@ -4,7 +4,8 @@
 
 **Goal:** Rebrand the desktop application from Mochi to Orbis while keeping all existing companion capabilities completely intact, and implement the dedicated, minimalist English Reading & Retelling desktop experience where users can import materials (Markdown/TXT/PDF/URL), highlight keywords, practice spoken retelling using only keywords, and receive voice + text feedback via OpenAI Realtime WebRTC through Codex credentials with manual turn-taking control and zero credential leakage to renderer.
 
-**Architecture:** 
+**Architecture:**
+
 - **Rebranding layer**: Rebrand application metadata, package names, identifiers, window titles, and tray menus from "Mochi" to "Orbis", while preserving all existing voice companion features and character pipelines.
 - **Reading domain & storage**: Clean file/URL text extraction pipelines (Markdown, TXT, `pdf-parse` text layer, clean HTML scraping), paragraph-aware keyword offset tracking, and atomic JSON persistence under `app.getPath('userData')/orbis-reading/`.
 - **Turn-controlled voice session (main-retained credentials)**: Main process mints ephemeral keys and holds them in an opaque session slot (`mintSlot`), returning only an opaque session token to renderer. The renderer opens WebRTC, sends `session.update` with `server_vad`, `create_response: false`, and `interrupt_response: false`, and confirms `session.updated` before allowing recording. User clicking "说完了" triggers manual `response.create` for evidence-based retelling evaluation. Frame parsing reuses `src/shared/realtime/frames.ts`.
@@ -60,6 +61,7 @@ src/
 ## Task 1: Rebrand from Mochi to Orbis, Install pdf-parse, & Test Hygiene
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `electron-builder.yml`
 - Modify: `src/main/index.ts`
@@ -70,9 +72,10 @@ src/
 - Modify: `src/renderer/history/format.ts`
 - Create: `src/main/brand.test.ts`
 
-- [ ] **Step 1: Write failing brand test**
+- [x] **Step 1: Write failing brand test**
 
 Create `src/main/brand.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest'
 import pkg from '../../package.json'
@@ -85,12 +88,12 @@ describe('Orbis branding', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm vitest run src/main/brand.test.ts`
 Expected: FAIL (`expected 'mochi' to be 'orbis'`)
 
-- [ ] **Step 3: Install pdf-parse and update package metadata**
+- [x] **Step 3: Install pdf-parse and update package metadata**
 
 1. Install `pdf-parse` and `@types/pdf-parse`:
    Run: `pnpm add pdf-parse` and `pnpm add -D @types/pdf-parse`
@@ -112,17 +115,17 @@ Expected: FAIL (`expected 'mochi' to be 'orbis'`)
    - In `src/main/shipped-assets.test.ts`: skip `.DS_Store` or non-directory items when reading folders.
    - In `src/renderer/history/format.ts`: ensure `dayLabel` uses explicit `'en-US'` locale for day formatting so tests pass on all system locales.
 
-- [ ] **Step 4: Run brand test to verify it passes**
+- [x] **Step 4: Run brand test to verify it passes**
 
 Run: `pnpm vitest run src/main/brand.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Run full test suite to verify no regression**
+- [x] **Step 5: Run full test suite to verify no regression**
 
 Run: `pnpm test`
 Expected: 182+ suites PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml electron-builder.yml src/main/index.ts src/preload/index.ts src/renderer/companion/index.html src/renderer/history/index.html src/main/shipped-assets.test.ts src/renderer/history/format.ts src/main/brand.test.ts
@@ -134,14 +137,16 @@ git commit -m "chore: rebrand app to Orbis, add pdf-parse dependency, and clean 
 ## Task 2: Reading Domain Models, Keyword Extraction & Prompt Construction
 
 **Files:**
+
 - Create: `src/shared/reading/article.ts`
 - Create: `src/shared/reading/prompt.ts`
 - Create: `src/shared/reading/article.test.ts`
 - Create: `src/shared/reading/prompt.test.ts`
 
-- [ ] **Step 1: Write failing test for article model and paragraph segmentation**
+- [x] **Step 1: Write failing test for article model and paragraph segmentation**
 
 Create `src/shared/reading/article.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest'
 import {
@@ -154,7 +159,7 @@ import {
 
 describe('Article and Highlight model', () => {
   it('splits text into numbered paragraphs and cleans up whitespace', () => {
-    const text = "First paragraph with details.\n\nSecond paragraph has more information."
+    const text = 'First paragraph with details.\n\nSecond paragraph has more information.'
     const article = createArticleFromText({
       title: 'Sample Note',
       source: 'test.md',
@@ -168,7 +173,7 @@ describe('Article and Highlight model', () => {
   })
 
   it('adds highlights with exact offsets without affecting duplicate words elsewhere', () => {
-    const text = "Water is essential. Drink water daily."
+    const text = 'Water is essential. Drink water daily.'
     let article = createArticleFromText({
       title: 'Water',
       source: 'test.txt',
@@ -205,14 +210,15 @@ describe('Article and Highlight model', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm vitest run src/shared/reading/article.test.ts`
 Expected: FAIL with missing module `./article`
 
-- [ ] **Step 3: Implement article.ts and prompt.ts**
+- [x] **Step 3: Implement article.ts and prompt.ts**
 
 Create `src/shared/reading/article.ts`:
+
 ```ts
 export type SourceType = 'markdown' | 'txt' | 'pdf' | 'url' | 'manual'
 
@@ -367,19 +373,16 @@ export function getKeywordsForScope(
 ```
 
 Create `src/shared/reading/prompt.ts`:
+
 ```ts
 import type { Article, PracticeScope } from './article'
 import { getKeywordsForScope } from './article'
 
-export function buildRetellingSystemPrompt(
-  article: Article,
-  scope: PracticeScope,
-): string {
-  const scopedParagraphs = article.paragraphs.slice(
-    scope.startParagraph,
-    scope.endParagraph + 1,
-  )
-  const fullTextScoped = scopedParagraphs.map((p) => `[Paragraph ${p.index + 1}]: ${p.text}`).join('\n\n')
+export function buildRetellingSystemPrompt(article: Article, scope: PracticeScope): string {
+  const scopedParagraphs = article.paragraphs.slice(scope.startParagraph, scope.endParagraph + 1)
+  const fullTextScoped = scopedParagraphs
+    .map((p) => `[Paragraph ${p.index + 1}]: ${p.text}`)
+    .join('\n\n')
   const keywordsByParagraph = getKeywordsForScope(article, scope)
   const keywordSummary = keywordsByParagraph
     .map(
@@ -419,6 +422,7 @@ EVALUATION & FEEDBACK RULES:
 ```
 
 Create `src/shared/reading/prompt.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest'
 import { createArticleFromText } from './article'
@@ -442,12 +446,12 @@ describe('Retelling prompt builder', () => {
 })
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run src/shared/reading/article.test.ts src/shared/reading/prompt.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/shared/reading/
@@ -459,12 +463,14 @@ git commit -m "feat(reading): add article models, paragraph splitting, keyword t
 ## Task 3: Text Importers (Markdown, Plain Text, PDF Text Layer with pdf-parse, Web Scraper)
 
 **Files:**
+
 - Create: `src/main/reading/importer.ts`
 - Create: `src/main/reading/importer.test.ts`
 
-- [ ] **Step 1: Write failing importer test**
+- [x] **Step 1: Write failing importer test**
 
 Create `src/main/reading/importer.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest'
 import { extractMarkdownOrTxt, extractHtmlArticle, parsePdfTextLayer } from './importer'
@@ -508,14 +514,15 @@ describe('Text Importers', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm vitest run src/main/reading/importer.test.ts`
 Expected: FAIL
 
-- [ ] **Step 3: Implement importer.ts with robust pdf-parse integration**
+- [x] **Step 3: Implement importer.ts with robust pdf-parse integration**
 
 Create `src/main/reading/importer.ts`:
+
 ```ts
 import pdfParse from 'pdf-parse'
 
@@ -578,14 +585,20 @@ export function extractHtmlArticle(html: string, url: string): ExtractedDocument
   let match: RegExpExecArray | null
   while ((match = blockRegex.exec(contentArea || '')) !== null) {
     const rawInner = match[2] || ''
-    const text = rawInner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const text = rawInner
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
     if (text.length > 20) {
       blocks.push(text)
     }
   }
 
   if (blocks.length === 0) {
-    const plain = (contentArea || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const plain = (contentArea || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
     if (plain.length < 50) {
       throw new Error(`Could not extract readable article text from ${url}`)
     }
@@ -599,7 +612,10 @@ export function extractHtmlArticle(html: string, url: string): ExtractedDocument
   }
 }
 
-export async function parsePdfTextLayer(buffer: Buffer, filename: string): Promise<ExtractedDocument> {
+export async function parsePdfTextLayer(
+  buffer: Buffer,
+  filename: string,
+): Promise<ExtractedDocument> {
   if (buffer.length === 0) {
     throw new Error('PDF file is empty')
   }
@@ -614,7 +630,9 @@ export async function parsePdfTextLayer(buffer: Buffer, filename: string): Promi
       )
     }
 
-    const title = (parsed.info?.Title ? String(parsed.info.Title).trim() : '') || filename.replace(/\.[^/.]+$/, '')
+    const title =
+      (parsed.info?.Title ? String(parsed.info.Title).trim() : '') ||
+      filename.replace(/\.[^/.]+$/, '')
 
     return {
       title,
@@ -630,12 +648,12 @@ export async function parsePdfTextLayer(buffer: Buffer, filename: string): Promi
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run src/main/reading/importer.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/reading/importer.ts src/main/reading/importer.test.ts
@@ -647,12 +665,14 @@ git commit -m "feat(reading): implement Markdown, TXT, HTML article, and pdf-par
 ## Task 4: Local Storage & Persistence for Articles & Practice Records
 
 **Files:**
+
 - Create: `src/main/reading/store.ts`
 - Create: `src/main/reading/store.test.ts`
 
-- [ ] **Step 1: Write failing store test**
+- [x] **Step 1: Write failing store test**
 
 Create `src/main/reading/store.test.ts`:
+
 ```ts
 import { describe, expect, it, beforeEach } from 'vitest'
 import { tmpdir } from 'node:os'
@@ -717,14 +737,15 @@ describe('ReadingStore', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm vitest run src/main/reading/store.test.ts`
 Expected: FAIL
 
-- [ ] **Step 3: Implement store.ts**
+- [x] **Step 3: Implement store.ts**
 
 Create `src/main/reading/store.ts`:
+
 ```ts
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -824,12 +845,12 @@ export function createReadingStore(baseDir: string): ReadingStore {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run src/main/reading/store.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/reading/store.ts src/main/reading/store.test.ts
@@ -841,6 +862,7 @@ git commit -m "feat(reading): implement local storage for articles, highlights, 
 ## Task 5: IPC Channels, Preload Bridge & Main Process Wiring (Without Secret Leaks)
 
 **Files:**
+
 - Create: `src/main/reading/ipc.ts`
 - Create: `src/main/reading/ipc.test.ts`
 - Modify: `src/shared/ipc.ts`
@@ -848,9 +870,10 @@ git commit -m "feat(reading): implement local storage for articles, highlights, 
 - Modify: `src/preload/index.ts`
 - Modify: `src/main/index.ts`
 
-- [ ] **Step 1: Write failing IPC test**
+- [x] **Step 1: Write failing IPC test**
 
 Create `src/main/reading/ipc.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest'
 import { isReadingChannel } from '../../shared/ipc'
@@ -870,15 +893,16 @@ describe('Reading IPC Channels allowlist', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm vitest run src/main/reading/ipc.test.ts`
 Expected: FAIL (`isReadingChannel is not exported`)
 
-- [ ] **Step 3: Implement secure IPC handlers and preload bridge**
+- [x] **Step 3: Implement secure IPC handlers and preload bridge**
 
 1. In `src/shared/ipc.ts`:
    Add `READING_CHANNELS` and `isReadingChannel`:
+
 ```ts
 export const READING_CHANNELS = new Set([
   'reading:articles:list',
@@ -903,12 +927,17 @@ export function isReadingChannel(channel: string): boolean {
 
 3. Create `src/main/reading/ipc.ts`:
    Follows Mochi's `mintSlot` pattern so that **ephemeral keys NEVER cross to the renderer**:
+
 ```ts
 import { dialog, ipcMain } from 'electron'
 import { readFileSync } from 'node:fs'
 import type { ReadingStore } from './store'
 import { extractHtmlArticle, extractMarkdownOrTxt, parsePdfTextLayer } from './importer'
-import { createArticleFromText, type Article, type PracticeRecord } from '../../shared/reading/article'
+import {
+  createArticleFromText,
+  type Article,
+  type PracticeRecord,
+} from '../../shared/reading/article'
 import { mintEphemeralKey, readBearer, exchangeSdp, type Minted } from '../voice/credential'
 import { createMintSlot } from '../voice/mint-slot'
 
@@ -940,9 +969,7 @@ export function registerReadingIpc(deps: {
     const res = await dialog.showOpenDialog({
       title: 'Open English Article',
       properties: ['openFile'],
-      filters: [
-        { name: 'Documents', extensions: ['md', 'markdown', 'txt', 'pdf'] },
-      ],
+      filters: [{ name: 'Documents', extensions: ['md', 'markdown', 'txt', 'pdf'] }],
     })
     if (res.canceled || !res.filePaths[0]) return null
     const filePath = res.filePaths[0]
@@ -1007,7 +1034,11 @@ export function registerReadingIpc(deps: {
 
   ipcMain.handle('reading:voice:sdp', async (_e, offer: string, sessionToken: string) => {
     const claim = mintSlot.claim(sessionToken)
-    if (!claim.ok) return { ok: false, problem: { kind: 'unreachable', why: 'Session token invalid or expired' } }
+    if (!claim.ok)
+      return {
+        ok: false,
+        problem: { kind: 'unreachable', why: 'Session token invalid or expired' },
+      }
     return await exchangeSdp({
       offer,
       minted: claim.value,
@@ -1023,6 +1054,7 @@ export function registerReadingIpc(deps: {
 4. Update `src/preload/index.ts`:
    - Add `'reading'` to `ROLES`.
    - Expose `window.orbisReading`:
+
 ```ts
 const guardReading = guarding('reading', isReadingChannel)
 
@@ -1069,6 +1101,7 @@ history.openReading = () => {
 5. In `src/main/index.ts`:
    - Import `createReadingStore` and `registerReadingIpc`.
    - Wire in main process startup:
+
 ```ts
 const readingStore = createReadingStore(app.getPath('userData'))
 registerReadingIpc({
@@ -1077,12 +1110,12 @@ registerReadingIpc({
 })
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run src/main/reading/ipc.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/shared/ipc.ts src/shared/history-window.ts src/main/reading/ipc.ts src/main/reading/ipc.test.ts src/preload/index.ts src/main/index.ts
@@ -1094,12 +1127,14 @@ git commit -m "feat(reading): implement secure main-held voice credentials and r
 ## Task 6: Realtime Voice Session with Manual Turn Control, Frame Reuse & Debouncing
 
 **Files:**
+
 - Create: `src/renderer/reading/audio/reading-session.ts`
 - Create: `src/renderer/reading/audio/reading-session.test.ts`
 
-- [ ] **Step 1: Write failing test for session state transitions**
+- [x] **Step 1: Write failing test for session state transitions**
 
 Create `src/renderer/reading/audio/reading-session.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest'
 import { buildRetellingSessionConfig } from './reading-session'
@@ -1118,14 +1153,15 @@ describe('Reading voice session configuration', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm vitest run src/renderer/reading/audio/reading-session.test.ts`
 Expected: FAIL
 
-- [ ] **Step 3: Implement reading-session.ts with frames.ts parser and session.updated gate**
+- [x] **Step 3: Implement reading-session.ts with frames.ts parser and session.updated gate**
 
 Create `src/renderer/reading/audio/reading-session.ts`:
+
 ```ts
 import { parseServerFrame } from '../../../shared/realtime/frames'
 
@@ -1344,12 +1380,12 @@ export async function openReadingVoiceSession(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run src/renderer/reading/audio/reading-session.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/renderer/reading/audio/
@@ -1361,6 +1397,7 @@ git commit -m "feat(reading): implement manual-turn WebRTC Realtime voice sessio
 ## Task 7: Window Setup, Electron Vite Entry & Navigation Integration
 
 **Files:**
+
 - Create: `src/renderer/reading/index.html`
 - Modify: `electron.vite.config.ts`
 - Modify: `src/main/window.ts`
@@ -1370,13 +1407,14 @@ git commit -m "feat(reading): implement manual-turn WebRTC Realtime voice sessio
 - Modify: `src/renderer/history/index.html`
 - Test: `src/main/tray.test.ts`
 
-- [ ] **Step 1: Write test for Tray menu containing Reading item**
+- [x] **Step 1: Write test for Tray menu containing Reading item**
 
 Update `src/main/tray.test.ts` to assert that the tray menu model and template include "Reading & Retelling…".
 
-- [ ] **Step 2: Update electron.vite.config.ts to add reading entry**
+- [x] **Step 2: Update electron.vite.config.ts to add reading entry**
 
 In `electron.vite.config.ts`:
+
 ```ts
         input: {
           companion: fileURLToPath(new URL('./src/renderer/companion/index.html', import.meta.url)),
@@ -1385,9 +1423,10 @@ In `electron.vite.config.ts`:
         },
 ```
 
-- [ ] **Step 3: Update window.ts types and implement showReadingWindow()**
+- [x] **Step 3: Update window.ts types and implement showReadingWindow()**
 
 In `src/main/window.ts`:
+
 1. Update `bridgeFor`:
    ```ts
    function bridgeFor(role: 'companion' | 'history' | 'reading'): Electron.WebPreferences
@@ -1405,18 +1444,18 @@ In `src/main/window.ts`:
    - Cleanup on `closed`: `reading = null`.
    - Calls `loadRenderer(window, 'reading')`.
 
-- [ ] **Step 4: Add Reading & Retelling triggers in Tray and Shell Rail**
+- [x] **Step 4: Add Reading & Retelling triggers in Tray and Shell Rail**
 
 - In `src/main/tray.ts`: add `{ label: 'Reading & Retelling…', click: handlers.onOpenReading }`.
 - In `src/main/index.ts`: wire `menuHandlers.onOpenReading = () => showReadingWindow()`.
 - In `src/renderer/history/parts/rail.ts` and `src/renderer/history/index.html`: add a dedicated button in the rail footer to call `window.orbisHistory.openReading()` (or `window.mochiHistory.openReading()`).
 
-- [ ] **Step 5: Run tray test and typecheck to verify they pass**
+- [x] **Step 5: Run tray test and typecheck to verify they pass**
 
 Run: `pnpm vitest run src/main/tray.test.ts` and `pnpm typecheck`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add electron.vite.config.ts src/main/window.ts src/main/tray.ts src/main/tray.test.ts src/main/index.ts src/renderer/history/parts/rail.ts src/renderer/history/index.html
@@ -1428,6 +1467,7 @@ git commit -m "feat(reading): add reading window setup, Vite entry, and tray/rai
 ## Task 8: Reading & Retelling User Interface Implementation
 
 **Files:**
+
 - Create: `src/renderer/reading/index.html`
 - Create: `src/renderer/reading/style.css`
 - Create: `src/renderer/reading/main.ts`
@@ -1437,9 +1477,10 @@ git commit -m "feat(reading): add reading window setup, Vite entry, and tray/rai
 - Create: `src/renderer/reading/components/feedback-view.ts`
 - Create: `src/renderer/reading/reading-views.test.ts`
 
-- [ ] **Step 1: Write failing view rendering tests**
+- [x] **Step 1: Write failing view rendering tests**
 
 Create `src/renderer/reading/reading-views.test.ts`:
+
 ```ts
 import { describe, expect, it } from 'vitest'
 import { renderKeywordsSummary } from './components/retelling-view'
@@ -1469,14 +1510,15 @@ describe('Retelling keyword rendering', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm vitest run src/renderer/reading/reading-views.test.ts`
 Expected: FAIL
 
-- [ ] **Step 3: Implement index.html, style.css, and view components**
+- [x] **Step 3: Implement index.html, style.css, and view components**
 
 1. Create `src/renderer/reading/index.html`:
+
 ```html
 <!doctype html>
 <html lang="en">
@@ -1519,12 +1561,12 @@ Expected: FAIL
    - Orchestrates the state machine: `home` ↔ `reading` ↔ `retelling` ↔ `feedback`.
    - Registers `window.addEventListener('beforeunload', () => session?.close())` to prevent microphone leaks.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm vitest run src/renderer/reading/reading-views.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/renderer/reading/
@@ -1535,27 +1577,27 @@ git commit -m "feat(reading): implement Reading & Retelling UI views and compone
 
 ## Task 9: Verification, Typecheck, Lint & Build
 
-- [ ] **Step 1: Run all unit tests**
+- [x] **Step 1: Run all unit tests**
 
 Run: `pnpm test`
 Expected: All tests pass.
 
-- [ ] **Step 2: Run TypeScript typecheck**
+- [x] **Step 2: Run TypeScript typecheck**
 
 Run: `pnpm typecheck`
 Expected: No type errors.
 
-- [ ] **Step 3: Run linter and formatting check**
+- [x] **Step 3: Run linter and formatting check**
 
 Run: `pnpm lint` and `pnpm format:check`
 Expected: Clean lint and formatting.
 
-- [ ] **Step 4: Build project with electron-vite**
+- [x] **Step 4: Build project with electron-vite**
 
 Run: `pnpm build`
 Expected: Successful build creating `out/main`, `out/preload`, and `out/renderer` (including `out/renderer/reading/index.html`).
 
-- [ ] **Step 5: Final review and commit**
+- [x] **Step 5: Final review and commit**
 
 ```bash
 git add -A
