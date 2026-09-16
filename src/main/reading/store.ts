@@ -1,17 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Article, PracticeRecord } from '../../shared/reading/article'
+import type { Article, ArticleSummary, PracticeRecord } from '../../shared/reading/article'
 
-export interface ArticleSummary {
-  readonly id: string
-  readonly title: string
-  readonly source: string
-  readonly sourceType: Article['sourceType']
-  readonly paragraphCount: number
-  readonly highlightCount: number
-  readonly updatedAt: number
-  readonly lastPractice?: PracticeRecord | null
-}
+export type { ArticleSummary }
 
 export interface ReadingStore {
   readonly listArticles: () => readonly ArticleSummary[]

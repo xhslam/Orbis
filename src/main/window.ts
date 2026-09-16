@@ -156,17 +156,17 @@ function herWindowOrigin(stored: Place | null): { x: number; y: number } {
  * open in exactly the direction it argues against. It refuses an absent role
  * now, and this is what keeps both windows working.
  */
-function bridgeFor(role: 'companion' | 'history'): Electron.WebPreferences {
+function bridgeFor(role: 'companion' | 'history' | 'reading'): Electron.WebPreferences {
   return {
     preload: join(__dirname, '../preload/index.js'),
     contextIsolation: true,
     nodeIntegration: false,
     sandbox: true,
-    additionalArguments: [`--mochi-role=${role}`],
+    additionalArguments: [`--orbis-role=${role}`, `--mochi-role=${role}`],
   }
 }
 
-function loadRenderer(window: BrowserWindow, page: 'companion' | 'history'): void {
+function loadRenderer(window: BrowserWindow, page: 'companion' | 'history' | 'reading'): void {
   // Checked against `undefined` rather than for truthiness, so an empty value
   // fails loudly instead of silently loading the packaged document while
   // claiming to be in development.
@@ -791,6 +791,43 @@ export function showHistoryWindow(): BrowserWindow {
   bringForward(window)
 
   loadRenderer(window, 'history')
+  return window
+}
+
+let readingWindow: BrowserWindow | null = null
+
+export function showReadingWindow(): BrowserWindow {
+  if (readingWindow !== null && !readingWindow.isDestroyed()) {
+    if (readingWindow.isMinimized()) readingWindow.restore()
+    bringForward(readingWindow)
+    return readingWindow
+  }
+
+  const primary = screen.getPrimaryDisplay().workArea
+  const width = Math.min(1200, primary.width - 80)
+  const height = Math.min(800, primary.height - 80)
+
+  const taskbarIcon = windowIcon()
+  const window = new BrowserWindow({
+    width,
+    height,
+    minWidth: 900,
+    minHeight: 600,
+    title: 'Orbis — Reading & Retelling',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#08080a' : '#f8f9fa',
+    skipTaskbar: false,
+    webPreferences: bridgeFor('reading'),
+    ...(taskbarIcon === null ? {} : { icon: taskbarIcon }),
+  })
+
+  readingWindow = window
+  window.on('closed', () => {
+    readingWindow = null
+  })
+
+  letDevToolsInspect(window.webContents)
+  bringForward(window)
+  loadRenderer(window, 'reading')
   return window
 }
 

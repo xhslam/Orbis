@@ -1236,6 +1236,25 @@ export function isShelfChannel(value: unknown): value is ShelfChannel {
   return typeof value === 'string' && (SHELF_CHANNELS as readonly string[]).includes(value)
 }
 
+export const READING_CHANNELS = [
+  'reading:articles:list',
+  'reading:article:get',
+  'reading:article:save',
+  'reading:article:delete',
+  'reading:import:file',
+  'reading:import:url',
+  'reading:practice:save',
+  'reading:voice:open',
+  'reading:voice:sdp',
+  'reading:open',
+] as const
+
+export type ReadingChannel = (typeof READING_CHANNELS)[number]
+
+export function isReadingChannel(value: unknown): value is ReadingChannel {
+  return typeof value === 'string' && (READING_CHANNELS as readonly string[]).includes(value)
+}
+
 /**
  * What the renderer tells main about the live session.
  *
