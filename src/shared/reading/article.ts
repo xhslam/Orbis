@@ -62,16 +62,12 @@ export interface OrbisReadingApi {
   importUrl(url: string): Promise<Article>
   savePractice(record: PracticeRecord): Promise<{ ok: boolean }>
   openVoice(): Promise<
-    | { ok: true; session: string; model: string }
-    | { ok: false; problem: unknown }
+    { ok: true; session: string; model: string } | { ok: false; problem: unknown }
   >
   sdp(
     offer: string,
     sessionToken: string,
-  ): Promise<
-    | { ok: true; answer: string }
-    | { ok: false; problem: unknown }
-  >
+  ): Promise<{ ok: true; answer: string } | { ok: false; problem: unknown }>
 }
 
 export function splitIntoParagraphs(text: string): readonly Paragraph[] {

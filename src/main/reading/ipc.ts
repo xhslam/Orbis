@@ -2,7 +2,11 @@ import { dialog, ipcMain, BrowserWindow } from 'electron'
 import { readFileSync } from 'node:fs'
 import type { ReadingStore } from './store'
 import { extractHtmlArticle, extractMarkdownOrTxt, parsePdfTextLayer } from './importer'
-import { createArticleFromText, type Article, type PracticeRecord } from '../../shared/reading/article'
+import {
+  createArticleFromText,
+  type Article,
+  type PracticeRecord,
+} from '../../shared/reading/article'
 import { mintEphemeralKey, readBearer, exchangeSdp } from '../voice/credential'
 import { createMintSlot } from '../voice/mint-slot'
 

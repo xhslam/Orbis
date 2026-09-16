@@ -1,15 +1,11 @@
 import type { Article, PracticeScope } from './article'
 import { getKeywordsForScope } from './article'
 
-export function buildRetellingSystemPrompt(
-  article: Article,
-  scope: PracticeScope,
-): string {
-  const scopedParagraphs = article.paragraphs.slice(
-    scope.startParagraph,
-    scope.endParagraph + 1,
-  )
-  const fullTextScoped = scopedParagraphs.map((p) => `[Paragraph ${p.index + 1}]: ${p.text}`).join('\n\n')
+export function buildRetellingSystemPrompt(article: Article, scope: PracticeScope): string {
+  const scopedParagraphs = article.paragraphs.slice(scope.startParagraph, scope.endParagraph + 1)
+  const fullTextScoped = scopedParagraphs
+    .map((p) => `[Paragraph ${p.index + 1}]: ${p.text}`)
+    .join('\n\n')
   const keywordsByParagraph = getKeywordsForScope(article, scope)
   const keywordSummary = keywordsByParagraph
     .map(
