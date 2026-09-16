@@ -12,6 +12,7 @@ const KEYS = { rest: 'Control+Shift+L', hide: 'Control+Shift+M' }
 
 const HANDLERS = {
   onOpen: () => undefined,
+  onOpenReading: () => undefined,
   onWear: () => undefined,
   onBubbleSide: () => undefined,
   onRest: () => undefined,
@@ -232,6 +233,23 @@ describe('the only way out', () => {
       .filter((item) => item.click === HANDLERS.onOpen)
       .map((item) => item.label)
     expect(opens).toEqual(['Main Window'])
+  })
+
+  it('offers Reading & Retelling window', () => {
+    const template = trayMenuTemplate(
+      {
+        personas: [],
+        wornId: 'mochi',
+        pronoun: 'she' as const,
+        bubble: BUBBLE,
+        resting: RESTING,
+        listening: false,
+        keys: KEYS,
+      },
+      HANDLERS,
+      'Orbis',
+    )
+    expect(labels(template)).toContain('Reading & Retelling…')
   })
 })
 

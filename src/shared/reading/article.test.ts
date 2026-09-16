@@ -4,7 +4,6 @@ import {
   addHighlight,
   removeHighlight,
   getKeywordsForScope,
-  type Article,
 } from './article'
 
 describe('Article and Highlight model', () => {

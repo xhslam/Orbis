@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import type { ReadingStore } from './store'
 import { extractHtmlArticle, extractMarkdownOrTxt, parsePdfTextLayer } from './importer'
 import { createArticleFromText, type Article, type PracticeRecord } from '../../shared/reading/article'
-import { mintEphemeralKey, readBearer, exchangeSdp, type Minted } from '../voice/credential'
+import { mintEphemeralKey, readBearer, exchangeSdp } from '../voice/credential'
 import { createMintSlot } from '../voice/mint-slot'
 
 export function registerReadingIpc(deps: {
@@ -31,6 +31,7 @@ export function registerReadingIpc(deps: {
   })
 
   ipcMain.handle('reading:import:file', async (event) => {
+    const parentWindow = BrowserWindow.fromWebContents(event.sender) ?? undefined
     const options = {
       title: 'Open English Article',
       properties: ['openFile' as const],

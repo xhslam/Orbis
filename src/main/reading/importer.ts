@@ -1,4 +1,4 @@
-import pdfParse from 'pdf-parse'
+import { PDFParse } from 'pdf-parse'
 
 export interface ExtractedDocument {
   readonly title: string
@@ -85,9 +85,11 @@ export async function parsePdfTextLayer(buffer: Buffer, filename: string): Promi
     throw new Error('PDF file is empty')
   }
 
+  const parser = new PDFParse({ data: buffer })
   try {
-    const parsed = await pdfParse(buffer)
-    const text = (parsed.text ?? '').replace(/\r\n/g, '\n').trim()
+    const textRes = await parser.getText()
+    const infoRes = await parser.getInfo().catch(() => null)
+    const text = (textRes.text ?? '').replace(/\r\n/g, '\n').trim()
 
     if (text.length < 20) {
       throw new Error(
@@ -95,7 +97,7 @@ export async function parsePdfTextLayer(buffer: Buffer, filename: string): Promi
       )
     }
 
-    const title = (parsed.info?.Title ? String(parsed.info.Title).trim() : '') || filename.replace(/\.[^/.]+$/, '')
+    const title = (infoRes?.info?.Title ? String(infoRes.info.Title).trim() : '') || filename.replace(/\.[^/.]+$/, '')
 
     return {
       title,
@@ -107,5 +109,7 @@ export async function parsePdfTextLayer(buffer: Buffer, filename: string): Promi
       throw err
     }
     throw new Error(`Failed to parse PDF "${filename}": ${String(err)}`)
+  } finally {
+    await parser.destroy().catch(() => {})
   }
 }

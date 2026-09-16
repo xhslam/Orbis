@@ -1400,6 +1400,9 @@ const menuHandlers = {
   onOpen: () => {
     showHistoryWindow()
   },
+  onOpenReading: () => {
+    showReadingWindow()
+  },
   onWear: (id: string) => {
     const written = wearPersona(id)
     // The menu has already drawn the radio as moved. Saying nothing when the

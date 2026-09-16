@@ -39,6 +39,7 @@ export interface Article {
   readonly highlights: readonly Highlight[]
   readonly createdAt: number
   readonly updatedAt: number
+  readonly lastPractice?: PracticeRecord | null | undefined
 }
 
 export interface ArticleSummary {
@@ -49,7 +50,7 @@ export interface ArticleSummary {
   readonly paragraphCount: number
   readonly highlightCount: number
   readonly updatedAt: number
-  readonly lastPractice?: PracticeRecord | null
+  readonly lastPractice?: PracticeRecord | null | undefined
 }
 
 export interface OrbisReadingApi {

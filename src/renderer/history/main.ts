@@ -89,6 +89,7 @@ import {
   pageHersEl,
   pageMachineEl,
   railMachineEl,
+  railReadingEl,
   viewsEl,
   findingEl,
   permitsEl,
@@ -131,6 +132,7 @@ installLogStamp()
 declare global {
   interface Window {
     readonly mochiHistory: MochiHistoryApi
+    readonly orbisHistory: MochiHistoryApi
     /*
       Both, because this is one window with three places in it.
 
@@ -140,6 +142,7 @@ declare global {
       nothing here can mint a key or exchange an SDP offer.
     */
     readonly mochiSettings: MochiSettingsApi
+    readonly orbisSettings: MochiSettingsApi
   }
 }
 
@@ -1061,6 +1064,9 @@ function renderPlaces(): void {
     }
     railMachineEl.addEventListener('click', () => {
       showPlace('machine')
+    })
+    railReadingEl.addEventListener('click', () => {
+      window.orbisHistory.openReading()
     })
   }
   for (const [id, button] of views) {

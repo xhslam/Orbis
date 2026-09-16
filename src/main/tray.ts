@@ -81,6 +81,7 @@ export interface TrayHandlers {
    * when it stopped being one.
    */
   readonly onOpen: () => void
+  readonly onOpenReading?: () => void
   readonly onWear: (id: string) => void
   readonly onBubbleSide: (side: string) => void
   readonly onRest: () => void
@@ -168,6 +169,10 @@ export function trayMenuTemplate(
      * window opens for itself and never was a listener.
      */
     { label: 'Main Window', click: handlers.onOpen },
+    {
+      label: 'Reading & Retelling…',
+      ...(handlers.onOpenReading ? { click: handlers.onOpenReading } : {}),
+    },
     { type: 'separator' },
     ...(model.personas.length > 1
       ? ([
