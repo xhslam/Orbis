@@ -47,7 +47,7 @@ export function createReadingStore(baseDir: string): ReadingStore {
           paragraphCount: art.paragraphs.length,
           highlightCount: art.highlights.length,
           updatedAt: art.updatedAt,
-          lastPractice: art.lastPractice,
+          lastPractice: art.lastPractice ?? null,
         }))
         .sort((a, b) => b.updatedAt - a.updatedAt)
     },

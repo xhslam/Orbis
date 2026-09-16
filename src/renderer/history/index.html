@@ -423,6 +423,12 @@
       .rail-machine[aria-current='true'] .rail-tile::before {
         border-color: var(--ink);
       }
+      .rail-reading .rail-tile {
+        font-size: var(--t-lead);
+      }
+      .rail-reading .rail-tile::before {
+        display: none;
+      }
       /*
         Making a character: two underlined words, exactly as drawn.
 
@@ -4793,6 +4799,10 @@
               same sentence under its title, where somebody who has arrived can
               read it.
             -->
+            <button class="rail-row rail-reading" id="rail-reading" type="button">
+              <span class="rail-tile" aria-hidden="true">📖</span>
+              <span class="rail-name">Reading & Retelling</span>
+            </button>
             <button class="rail-row rail-machine" id="rail-machine" type="button">
               <span class="rail-tile" aria-hidden="true"></span>
               <span class="rail-name">This machine</span>
