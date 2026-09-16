@@ -8,7 +8,7 @@ import {
 
 describe('Article and Highlight model', () => {
   it('splits text into numbered paragraphs and cleans up whitespace', () => {
-    const text = "First paragraph with details.\n\nSecond paragraph has more information."
+    const text = 'First paragraph with details.\n\nSecond paragraph has more information.'
     const article = createArticleFromText({
       title: 'Sample Note',
       source: 'test.md',
@@ -22,7 +22,7 @@ describe('Article and Highlight model', () => {
   })
 
   it('adds highlights with exact offsets without affecting duplicate words elsewhere', () => {
-    const text = "Water is essential. Drink water daily."
+    const text = 'Water is essential. Drink water daily.'
     let article = createArticleFromText({
       title: 'Water',
       source: 'test.txt',
@@ -47,7 +47,7 @@ describe('Article and Highlight model', () => {
   })
 
   it('removes highlights cleanly', () => {
-    const text = "Practice makes perfect."
+    const text = 'Practice makes perfect.'
     let article = createArticleFromText({
       title: 'Practice',
       source: 'practice.txt',

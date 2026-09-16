@@ -108,13 +108,17 @@ const ROLES = new Set(['companion', 'history', 'reading'])
 
 const reading: OrbisReadingApi = {
   async listArticles() {
-    return (await ipcRenderer.invoke(guardReading('reading:articles:list'))) as readonly ArticleSummary[]
+    return (await ipcRenderer.invoke(
+      guardReading('reading:articles:list'),
+    )) as readonly ArticleSummary[]
   },
   async getArticle(id: string) {
     return (await ipcRenderer.invoke(guardReading('reading:article:get'), id)) as Article | null
   },
   async saveArticle(article: Article) {
-    return (await ipcRenderer.invoke(guardReading('reading:article:save'), article)) as { ok: boolean }
+    return (await ipcRenderer.invoke(guardReading('reading:article:save'), article)) as {
+      ok: boolean
+    }
   },
   async deleteArticle(id: string) {
     return (await ipcRenderer.invoke(guardReading('reading:article:delete'), id)) as boolean
@@ -126,17 +130,17 @@ const reading: OrbisReadingApi = {
     return (await ipcRenderer.invoke(guardReading('reading:import:url'), url)) as Article
   },
   async savePractice(record: PracticeRecord) {
-    return (await ipcRenderer.invoke(guardReading('reading:practice:save'), record)) as { ok: boolean }
+    return (await ipcRenderer.invoke(guardReading('reading:practice:save'), record)) as {
+      ok: boolean
+    }
   },
   async openVoice() {
     return (await ipcRenderer.invoke(guardReading('reading:voice:open'))) as
-      | { ok: true; session: string; model: string }
-      | { ok: false; problem: unknown }
+      { ok: true; session: string; model: string } | { ok: false; problem: unknown }
   },
   async sdp(offer: string, sessionToken: string) {
     return (await ipcRenderer.invoke(guardReading('reading:voice:sdp'), offer, sessionToken)) as
-      | { ok: true; answer: string }
-      | { ok: false; problem: unknown }
+      { ok: true; answer: string } | { ok: false; problem: unknown }
   },
 }
 

@@ -59,14 +59,20 @@ export function extractHtmlArticle(html: string, url: string): ExtractedDocument
   let match: RegExpExecArray | null
   while ((match = blockRegex.exec(contentArea || '')) !== null) {
     const rawInner = match[2] || ''
-    const text = rawInner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const text = rawInner
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
     if (text.length > 20) {
       blocks.push(text)
     }
   }
 
   if (blocks.length === 0) {
-    const plain = (contentArea || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const plain = (contentArea || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
     if (plain.length < 50) {
       throw new Error(`Could not extract readable article text from ${url}`)
     }
@@ -80,7 +86,10 @@ export function extractHtmlArticle(html: string, url: string): ExtractedDocument
   }
 }
 
-export async function parsePdfTextLayer(buffer: Buffer, filename: string): Promise<ExtractedDocument> {
+export async function parsePdfTextLayer(
+  buffer: Buffer,
+  filename: string,
+): Promise<ExtractedDocument> {
   if (buffer.length === 0) {
     throw new Error('PDF file is empty')
   }
@@ -97,7 +106,9 @@ export async function parsePdfTextLayer(buffer: Buffer, filename: string): Promi
       )
     }
 
-    const title = (infoRes?.info?.Title ? String(infoRes.info.Title).trim() : '') || filename.replace(/\.[^/.]+$/, '')
+    const title =
+      (infoRes?.info?.Title ? String(infoRes.info.Title).trim() : '') ||
+      filename.replace(/\.[^/.]+$/, '')
 
     return {
       title,
