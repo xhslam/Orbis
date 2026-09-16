@@ -3,6 +3,7 @@ import { type Link } from '@shared/links'
 import { contextBridge, ipcRenderer } from 'electron'
 import {
   isCompanionChannel,
+  isReadingChannel,
   isSettingsChannel,
   isShelfChannel,
   type ForgetTalk,
@@ -20,6 +21,12 @@ import {
   type VoiceReport,
 } from '@shared/ipc'
 import { type MochiHistoryApi } from '@shared/history-window'
+import {
+  type Article,
+  type ArticleSummary,
+  type OrbisReadingApi,
+  type PracticeRecord,
+} from '@shared/reading/article'
 
 /**
  * The only path between the page and the main process.
@@ -56,6 +63,7 @@ function guarding(role: string, allowed: (channel: string) => boolean) {
 const guard = guarding('companion', isCompanionChannel)
 const guardShelf = guarding('shelf', isShelfChannel)
 const guardSettings = guarding('settings', isSettingsChannel)
+const guardReading = guarding('reading', isReadingChannel)
 
 /**
  * Which document this is, from `additionalArguments`.
@@ -96,7 +104,41 @@ const role =
  * left behind by deleting the window that made the name legitimate. A role in
  * this set must have a branch; there are two of each now.
  */
-const ROLES = new Set(['companion', 'history'])
+const ROLES = new Set(['companion', 'history', 'reading'])
+
+const reading: OrbisReadingApi = {
+  async listArticles() {
+    return (await ipcRenderer.invoke(guardReading('reading:articles:list'))) as readonly ArticleSummary[]
+  },
+  async getArticle(id: string) {
+    return (await ipcRenderer.invoke(guardReading('reading:article:get'), id)) as Article | null
+  },
+  async saveArticle(article: Article) {
+    return (await ipcRenderer.invoke(guardReading('reading:article:save'), article)) as { ok: boolean }
+  },
+  async deleteArticle(id: string) {
+    return (await ipcRenderer.invoke(guardReading('reading:article:delete'), id)) as boolean
+  },
+  async importFile() {
+    return (await ipcRenderer.invoke(guardReading('reading:import:file'))) as Article | null
+  },
+  async importUrl(url: string) {
+    return (await ipcRenderer.invoke(guardReading('reading:import:url'), url)) as Article
+  },
+  async savePractice(record: PracticeRecord) {
+    return (await ipcRenderer.invoke(guardReading('reading:practice:save'), record)) as { ok: boolean }
+  },
+  async openVoice() {
+    return (await ipcRenderer.invoke(guardReading('reading:voice:open'))) as
+      | { ok: true; session: string; model: string }
+      | { ok: false; problem: unknown }
+  },
+  async sdp(offer: string, sessionToken: string) {
+    return (await ipcRenderer.invoke(guardReading('reading:voice:sdp'), offer, sessionToken)) as
+      | { ok: true; answer: string }
+      | { ok: false; problem: unknown }
+  },
+}
 
 const api: MochiApi = {
   async open() {
@@ -218,6 +260,9 @@ const history: MochiHistoryApi = {
   async copy(text: string) {
     return (await ipcRenderer.invoke(guardShelf('shelf:copy'), text)) as Answers['shelf:copy']
   },
+  openReading() {
+    ipcRenderer.send(guardReading('reading:open'))
+  },
 }
 
 const settings: MochiSettingsApi = {
@@ -304,6 +349,8 @@ if (!ROLES.has(role)) {
   // undefined, which reads as a bug in the page rather than a refusal. An empty
   // string is the ABSENT case, and it lands here rather than on the companion.
   console.error(`[preload] refusing to expose any API: unknown role "${role}"`)
+} else if (role === 'reading') {
+  contextBridge.exposeInMainWorld('orbisReading', reading)
 } else if (role === 'history') {
   /*
     ONE window now, so one role gets both APIs — and that is a real widening,

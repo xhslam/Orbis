@@ -299,4 +299,6 @@ export interface MochiHistoryApi {
   prompt(text: string): Promise<SettingsWrite>
   /** Put one turn's words on the clipboard. See `shelf:copy`. */
   copy(text: string): Promise<SettingsWrite>
+  /** Open or bring forward the Orbis Reading & Retelling window. */
+  openReading(): void
 }

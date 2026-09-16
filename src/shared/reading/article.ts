@@ -39,7 +39,38 @@ export interface Article {
   readonly highlights: readonly Highlight[]
   readonly createdAt: number
   readonly updatedAt: number
+}
+
+export interface ArticleSummary {
+  readonly id: string
+  readonly title: string
+  readonly source: string
+  readonly sourceType: SourceType
+  readonly paragraphCount: number
+  readonly highlightCount: number
+  readonly updatedAt: number
   readonly lastPractice?: PracticeRecord | null
+}
+
+export interface OrbisReadingApi {
+  listArticles(): Promise<readonly ArticleSummary[]>
+  getArticle(id: string): Promise<Article | null>
+  saveArticle(article: Article): Promise<{ ok: boolean }>
+  deleteArticle(id: string): Promise<boolean>
+  importFile(): Promise<Article | null>
+  importUrl(url: string): Promise<Article>
+  savePractice(record: PracticeRecord): Promise<{ ok: boolean }>
+  openVoice(): Promise<
+    | { ok: true; session: string; model: string }
+    | { ok: false; problem: unknown }
+  >
+  sdp(
+    offer: string,
+    sessionToken: string,
+  ): Promise<
+    | { ok: true; answer: string }
+    | { ok: false; problem: unknown }
+  >
 }
 
 export function splitIntoParagraphs(text: string): readonly Paragraph[] {

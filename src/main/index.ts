@@ -194,7 +194,9 @@ import {
   summarisedThrough,
 } from './store/memory'
 import type { Turn } from './store/turn-row'
-import { createCompanionWindow, showHistoryWindow } from './window'
+import { createCompanionWindow, showHistoryWindow, showReadingWindow } from './window'
+import { createReadingStore } from './reading/store'
+import { registerReadingIpc } from './reading/ipc'
 import { checkCodexNow, codexForWindow } from './codex/ready'
 import { codexPathNow } from './codex/ready'
 import { carryGrantsForward } from './store/grants'
@@ -2633,6 +2635,12 @@ listenTo('clipboard:write', (_event, text: unknown) => {
 
 listenTo('history:open', () => {
   showHistoryWindow()
+})
+
+const readingStore = createReadingStore(app.getPath('userData'))
+registerReadingIpc({
+  store: readingStore,
+  openReadingWindow: () => showReadingWindow(),
 })
 
 answer('history:list', () => {
