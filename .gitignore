@@ -1,0 +1,45 @@
+node_modules/
+dist/
+out/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+!.env.example
+.render/
+.measure/
+
+# Dropped in the working directory by the Codex CLI. Contains an account id.
+error.log
+
+# Agent instructions and design notes. Local to this checkout: they describe how
+# the work is done, not what the project ships. Anchored to the root so a fixture
+# named AGENTS.md somewhere under src/ is still tracked.
+/AGENTS.md
+/CLAUDE.md
+
+# Audit findings quote source; they are a local artifact, not a repo one.
+.cc-suite/
+
+# Every working note: the plan, the measurements, the spikes, design handoffs and
+# local audit artifacts. Untracked ON PURPOSE, for the same reason as AGENTS.md
+# above — they describe how the work is done, not what the project ships. Losing a
+# spike loses nothing, because every measurement carries its own method.
+dev-docs/
+
+# Assistant tooling, settings, and worktrees. The worktrees are checkouts of
+# this same repo, so git reports them as untracked nested repos unless ignored.
+#
+# WHOLESALE, with no exceptions. `!.claude/loc-guardian.local.md` used to sit
+# here so the LOC gate's config -- the limit, the argument for the number, and
+# the three files it is knowingly wrong about -- stayed reviewable. It is
+# untracked now by decision, not by oversight: the file is still on disk and the
+# gate still reads it, it is simply not versioned. Do not re-add the negation on
+# the assumption that its absence is a mistake.
+.claude/*
+
+# VMark editor session state
+.vmark/
+
+release/

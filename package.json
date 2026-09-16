@@ -1,0 +1,63 @@
+{
+  "name": "orbis",
+  "productName": "Orbis",
+  "version": "0.1.20",
+  "private": true,
+  "description": "A realtime-voice AI companion and reading tool that lives on your desktop",
+  "author": "@xiaolai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiaolai/mochi.git"
+  },
+  "homepage": "https://lixiaolai.com",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "dist": "pnpm verify && pnpm build && electron-builder",
+    "dist:mac": "pnpm verify && pnpm build && electron-builder --mac",
+    "icons": "node scripts/icons.mjs",
+    "icons:check": "node scripts/icons.mjs --check",
+    "showreel": "node scripts/showreel.mjs",
+    "verify:signing": "bash scripts/verify-signing.sh",
+    "verify:codex": "bash scripts/verify-codex-precedence.sh",
+    "preview": "electron-vite preview",
+    "bump": "node scripts/bump.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.test.json",
+    "lint": "oxlint --type-aware",
+    "format": "prettier --write --cache .",
+    "format:check": "prettier --check --cache .",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "verify:rendered": "pnpm build && node scripts/check-rendered.mjs",
+    "rendered": "node scripts/check-rendered.mjs"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.6",
+    "@types/node": "^26.1.2",
+    "@types/pdf-parse": "^1.1.5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "lucide-static": "^1.31.0",
+    "oxlint": "1.77.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "prettier": "3.9.6",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
+  },
+  "main": "./out/main/index.js",
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "pdf-parse": "^2.4.5"
+  }
+}
