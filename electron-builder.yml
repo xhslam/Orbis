@@ -122,7 +122,7 @@ mac:
     # The sentence macOS shows when it asks. Without it the permission dialog
     # never appears and the microphone simply never opens -- which presents as
     # "she cannot hear me", not as a missing plist key.
-    NSMicrophoneUsageDescription: Mochi listens so you can talk to her.
+    NSMicrophoneUsageDescription: Orbis listens so you can talk to her and practice retelling.
     # She is an accessory: `main/index.ts` sets that activation policy at
     # startup, and declaring it here is what keeps a Dock icon from appearing
     # for the moment before it runs.
