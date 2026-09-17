@@ -1,6 +1,7 @@
 import type { ShelfView } from '@shared/history-window'
 import { element } from '../../element'
 import { PRONOUN_CAPS, faceTile } from '../sheet/face-tile'
+import { getLanguage } from '../../i18n'
 
 /**
  * The rail: who exists, and the machine underneath them.
@@ -92,8 +93,11 @@ export function characterRows(
       would be a mark somebody has to already know how to read, and being worn
       is the one fact on this row a person is actually looking for.
     */
-    if (one.id === view.wornId) row.append(element('span', 'rail-mark', 'Worn'))
+    if (one.id === view.wornId) {
+      row.append(element('span', 'rail-mark', getLanguage() === 'zh' ? '已佩戴' : 'Worn'))
+    }
 
+    row.title = one.name
     row.addEventListener('click', () => {
       onOpen(one.id)
     })

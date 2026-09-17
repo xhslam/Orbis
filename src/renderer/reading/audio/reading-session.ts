@@ -95,11 +95,12 @@ export async function openReadingVoiceSession(
   })
 
   const pc = new RTCPeerConnection()
-  const remoteStream = new MediaStream()
-  handlers.onAudioStream(remoteStream)
+  let remoteStream: MediaStream | null = null
 
   pc.ontrack = (event) => {
-    remoteStream.addTrack(event.track)
+    const stream = event.streams[0] ?? new MediaStream([event.track])
+    remoteStream = stream
+    handlers.onAudioStream(stream)
   }
 
   localStream.getAudioTracks().forEach((track) => pc.addTrack(track, localStream))
@@ -160,15 +161,18 @@ export async function openReadingVoiceSession(
   await pc.setLocalDescription(offer)
 
   const sdpRes = await api.sdp(offer.sdp ?? '', sessionToken)
-  if (!sdpRes.ok) {
+  const answerSdp = sdpRes.ok ? (sdpRes.answer ?? (sdpRes as { value?: string }).value) : null
+  if (!sdpRes.ok || !answerSdp) {
     localStream.getTracks().forEach((t) => t.stop())
     pc.close()
-    const err = 'Failed to establish SDP with voice service'
+    const err = !sdpRes.ok
+      ? 'Failed to establish SDP with voice service'
+      : 'Voice service returned empty SDP answer'
     handlers.onStateChange({ error: err })
     throw new Error(err)
   }
 
-  await pc.setRemoteDescription({ type: 'answer', sdp: sdpRes.answer })
+  await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp })
 
   return {
     startRecording() {
@@ -209,7 +213,7 @@ export async function openReadingVoiceSession(
       const responseEvent: Record<string, unknown> = {
         type: 'response.create',
         response: {
-          output_modalities: ['audio', 'text'],
+          modalities: ['audio', 'text'],
           ...(instructionsOverride ? { instructions: instructionsOverride } : {}),
         },
       }
@@ -218,7 +222,7 @@ export async function openReadingVoiceSession(
     },
 
     stopPlayback() {
-      remoteStream.getAudioTracks().forEach((t) => {
+      remoteStream?.getAudioTracks().forEach((t) => {
         t.enabled = false
       })
     },
@@ -227,6 +231,7 @@ export async function openReadingVoiceSession(
       localStream.getTracks().forEach((t) => t.stop())
       pc.close()
       handlers.onStateChange('closed')
+      void window.orbisReading?.closeVoice().catch(() => {})
     },
   }
 }

@@ -68,6 +68,7 @@ export interface OrbisReadingApi {
     offer: string,
     sessionToken: string,
   ): Promise<{ ok: true; answer: string } | { ok: false; problem: unknown }>
+  closeVoice(): Promise<{ ok: boolean }>
 }
 
 export function splitIntoParagraphs(text: string): readonly Paragraph[] {

@@ -50,6 +50,8 @@ import { faceTile } from './sheet/face-tile'
 import { type ShelfHandlers } from './sheet/row'
 import { installLogStamp } from '@shared/log'
 import { SAYS } from './main-says'
+import type { OrbisReadingApi } from '@shared/reading/article'
+import { createReadingApp, type ReadingApp } from '../reading/app'
 /*
   The settings panes' own copy, aliased because this file already has a `SAYS`.
 
@@ -88,8 +90,15 @@ import {
   troublesLabelEl,
   pageHersEl,
   pageMachineEl,
+  pageReadingEl,
+  railEl,
+  railToggleEl,
   railMachineEl,
   railReadingEl,
+  machineLangEnEl,
+  machineLangZhEl,
+  machineTitleEl,
+  machineSaysEl,
   viewsEl,
   findingEl,
   permitsEl,
@@ -102,6 +111,7 @@ import {
   jumpFoundEl,
   jumpSaidEl,
 } from './elements'
+import { getLanguage, setLanguage, onLanguageChange } from '../i18n'
 import { receipt, say } from './status'
 import { element } from '../element'
 import { empty, facts, iconButton, marked } from './bits'
@@ -143,6 +153,7 @@ declare global {
     */
     readonly mochiSettings: MochiSettingsApi
     readonly orbisSettings: MochiSettingsApi
+    readonly orbisReading?: OrbisReadingApi
   }
 }
 
@@ -436,7 +447,7 @@ const looking = latest()
 function renderCards(): void {
   if (shelf === null) return
   charactersEl.replaceChildren(
-    ...characterRows(shelf, showingCharacter ? shelf.wornId : null, (id) => {
+    ...characterRows(shelf, isHers(place) && showingCharacter ? shelf.wornId : null, (id) => {
       showingCharacter = true
       open = null
       looking.moved()
@@ -470,8 +481,9 @@ function renderCards(): void {
     does, entirely in the caps face this window reserves for labels.
   */
   const many = shelf.characters.length
+  const isZh = getLanguage() === 'zh'
   charactersCountEl.replaceChildren(
-    element('span', undefined, copyFor(SAYS.railCast, saying())),
+    element('span', undefined, isZh ? '角色列表' : copyFor(SAYS.railCast, saying())),
     element('span', 'rail-count', String(many)),
   )
   /*
@@ -875,6 +887,7 @@ function openCharacter(): void {
  * conversations now have the whole window. One tab strip, one subject.
  */
 let place: Place = 'cast'
+let readingApp: ReadingApp | null = null
 
 function showPlace(next: Place): void {
   place = next
@@ -923,7 +936,9 @@ function showPlace(next: Place): void {
   // the size it is shown.
   renderSubject()
   pageHersEl.hidden = !isHers(place)
-  pageMachineEl.hidden = isHers(place)
+  pageMachineEl.hidden = place !== 'machine'
+  pageReadingEl.hidden = place !== 'reading'
+  statusEl.hidden = place === 'reading'
 
   // One body per view in the reading column, and one in the margin. Separate
   // elements rather than one that is rebuilt, so a transcript survives a trip
@@ -984,12 +999,26 @@ function showPlace(next: Place): void {
     empty(talkEl, forPronoun(SAYS.pickOne, saying()))
   }
   renderPlaces()
+  renderCards()
   // Read on arrival rather than held: the machine's answers come from disk and
   // from another window's writes, so a cached copy is stale when it matters.
   // Both the machine page and view III read from the machine's answers, and
   // both come from disk and from another window's writes — so a cached copy is
   // stale the first time it matters.
   if (place === 'machine' || place === 'permits') void loadMachine()
+  if (place === 'reading') {
+    if (readingApp === null) {
+      const readingRoot = pageReadingEl.querySelector<HTMLElement>('#reading-app')
+      if (readingRoot) {
+        readingApp = createReadingApp(readingRoot)
+        void readingApp.mount()
+      }
+    } else {
+      void readingApp.refresh()
+    }
+  } else {
+    readingApp?.cleanup()
+  }
 }
 
 /**
@@ -1066,8 +1095,33 @@ function renderPlaces(): void {
       showPlace('machine')
     })
     railReadingEl.addEventListener('click', () => {
-      window.orbisHistory.openReading()
+      showPlace('reading')
     })
+    railToggleEl.addEventListener('click', () => {
+      const isCollapsed = railEl.classList.toggle('collapsed')
+      try {
+        localStorage.setItem('orbis:rail:collapsed', String(isCollapsed))
+      } catch {
+        // ignore
+      }
+      updateRailToggleState(isCollapsed)
+    })
+    try {
+      if (localStorage.getItem('orbis:rail:collapsed') === 'true') {
+        railEl.classList.add('collapsed')
+      }
+    } catch {
+      // ignore
+    }
+    updateRailToggleState(railEl.classList.contains('collapsed'))
+
+    machineLangEnEl.addEventListener('click', () => setLanguage('en'))
+    machineLangZhEl.addEventListener('click', () => setLanguage('zh'))
+
+    onLanguageChange(() => {
+      updateI18nSurfaces()
+    })
+    updateI18nSurfaces()
   }
   for (const [id, button] of views) {
     const here = id === place
@@ -1080,8 +1134,14 @@ function renderPlaces(): void {
       failure `SettingsView.pronoun` records.
     */
     const label = button.querySelector('.view-label')
-    const wording = id === 'machine' ? null : VIEW_SAYS[id]
-    if (label !== null && wording !== null) label.textContent = forPronoun(wording, saying())
+    const wording = isHers(id) ? VIEW_SAYS[id] : null
+    if (label !== null && wording !== null) {
+      if (getLanguage() === 'zh') {
+        label.textContent = id === 'cast' ? '角色设定' : id === 'archive' ? '历史对话' : '权限许可'
+      } else {
+        label.textContent = forPronoun(wording, saying())
+      }
+    }
     button.setAttribute('aria-current', String(here))
     button.setAttribute('aria-selected', String(here))
     // ROVING: only the selected view is a tab stop, so `Tab` enters once and
@@ -1089,6 +1149,47 @@ function renderPlaces(): void {
     button.tabIndex = here ? 0 : -1
   }
   railMachineEl.setAttribute('aria-current', String(place === 'machine'))
+  railReadingEl.setAttribute('aria-current', String(place === 'reading'))
+}
+
+function updateRailToggleState(isCollapsed: boolean): void {
+  const isZh = getLanguage() === 'zh'
+  const tip = isCollapsed
+    ? isZh
+      ? '展开侧边栏'
+      : 'Expand sidebar'
+    : isZh
+      ? '收起侧边栏'
+      : 'Collapse sidebar'
+  railToggleEl.title = tip
+  railToggleEl.setAttribute('aria-label', tip)
+}
+
+function updateI18nSurfaces(): void {
+  const isZh = getLanguage() === 'zh'
+  updateRailToggleState(railEl.classList.contains('collapsed'))
+
+  const readingName = railReadingEl.querySelector('.rail-name')
+  if (readingName) readingName.textContent = isZh ? '阅读与复述' : 'Reading & Retelling'
+  railReadingEl.title = isZh ? '阅读与复述' : 'Reading & Retelling'
+
+  const machineName = railMachineEl.querySelector('.rail-name')
+  if (machineName) machineName.textContent = isZh ? '本机设置' : 'This machine'
+  railMachineEl.title = isZh ? '本机设置' : 'This machine'
+
+  machineTitleEl.textContent = isZh ? '本机设置' : 'This machine'
+  machineSaysEl.textContent = isZh
+    ? '这些设置对所有角色通用生效。'
+    : forPronoun(SAYS.machineSays, saying())
+  machineLangEnEl.setAttribute('aria-pressed', String(!isZh))
+  machineLangZhEl.setAttribute('aria-pressed', String(isZh))
+
+  queryEl.placeholder = isZh ? '搜索所有对话历史' : 'Search everything ever said'
+
+  renderCards()
+  renderPlaces()
+  if (place === 'machine') renderMachine()
+  if (readingApp !== null) void readingApp.refresh()
 }
 
 /* ---- doing things -------------------------------------------------------- */
@@ -2165,10 +2266,8 @@ async function readConversations(): Promise<void> {
     // with. The cards say "Loki"; a title bar saying `loki` beside them would
     // be two names for one character in one window.
     const name = shelf?.characters.find((one) => one.id === answer.persona)?.name
-    // "Mochi", not "Shelf". The shelf is one of this window's three places —
-    // the archive and this machine are the other two — and the tray's single
-    // item names the application for the same reason.
-    document.title = `Mochi · ${name ?? answer.persona}`
+    // "Orbis", not "Shelf".
+    document.title = `Orbis · ${name ?? answer.persona}`
     /*
       WHAT THE NUMBER COUNTS, said in the number's own line — A3's "4
       conversations this month".

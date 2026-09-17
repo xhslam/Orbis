@@ -76,11 +76,23 @@ export const pageHersEl = need('page-hers', HTMLElement)
 
 export const pageMachineEl = need('page-machine', HTMLElement)
 
+export const pageReadingEl = need('page-reading', HTMLElement)
+
+/** The collapsible left rail and its toggle. */
+export const railEl = need('rail', HTMLElement)
+export const railToggleEl = need('rail-toggle', HTMLButtonElement)
+
 /** The rail's row for the machine, which is not one of her views. */
 export const railMachineEl = need('rail-machine', HTMLButtonElement)
 
 /** The rail's row for Reading & Retelling. */
 export const railReadingEl = need('rail-reading', HTMLButtonElement)
+
+/** Language switch buttons and header text in This Machine page. */
+export const machineLangEnEl = need('machine-lang-en', HTMLButtonElement)
+export const machineLangZhEl = need('machine-lang-zh', HTMLButtonElement)
+export const machineTitleEl = need('machine-title', HTMLElement)
+export const machineSaysEl = need('machine-says', HTMLElement)
 
 /** The three numbered views under her name. */
 export const viewsEl = need('views', HTMLElement)

@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   renderKeywordsSummary,
   renderRetellingView,
   type RetellingViewProps,
 } from './components/retelling-view'
 import { renderHomeView, type HomeViewProps } from './components/home-view'
+import { renderArticleView, type ArticleViewProps } from './components/article-view'
 import { renderFeedbackView, type FeedbackViewProps } from './components/feedback-view'
 import {
   createArticleFromText,
@@ -13,6 +14,7 @@ import {
   type ArticleSummary,
   type PracticeScope,
 } from '../../shared/reading/article'
+import { setLanguage } from '../i18n'
 
 function createMockContainer() {
   let html = ''
@@ -51,6 +53,14 @@ function createMockContainer() {
 }
 
 describe('Reading & Retelling UI Components', () => {
+  beforeEach(() => {
+    setLanguage('en')
+  })
+
+  afterEach(() => {
+    setLanguage('en')
+  })
+
   const sampleArticle = createArticleFromText({
     title: 'The Great Barrier Reef',
     source: 'ocean.txt',
@@ -151,6 +161,27 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('说完了 (Finished Speaking)')
       expect(html).toContain('Listening… Retell the story using your keywords')
       expect(html).toContain('Manual Turn Taking')
+    })
+  })
+
+  describe('renderArticleView', () => {
+    it('renders article paragraphs and controls in English', () => {
+      const { element, getHtml } = createMockContainer()
+      const props: ArticleViewProps = {
+        article: articleWithHighlights,
+        onUpdateArticle: vi.fn(),
+        onStartRetelling: vi.fn(),
+        onBack: vi.fn(),
+      }
+
+      renderArticleView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('The Great Barrier Reef')
+      expect(html).toContain('← Library')
+      expect(html).toContain('Start Retelling →')
+      expect(html).toContain('Practice Scope:')
+      expect(html).toContain('All paragraphs (1–3)')
     })
   })
 
@@ -259,6 +290,154 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('Feedback Complete')
       expect(html).toContain('Excellent summary.')
       expect(html).not.toContain('Stop Voice')
+    })
+  })
+
+  describe('Chinese localization (zh)', () => {
+    beforeEach(() => {
+      setLanguage('zh')
+    })
+
+    it('renders keywords summary in Chinese', () => {
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 2 }
+      const html = renderKeywordsSummary(articleWithHighlights, scope)
+
+      expect(html).toContain('第 1 段')
+      expect(html).toContain('第 2 段')
+      expect(html).toContain('第 3 段')
+      expect(html).toContain('未标记关键词')
+    })
+
+    it('renders retelling view in Chinese', () => {
+      const { element, getHtml } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const props: RetellingViewProps = {
+        article: articleWithHighlights,
+        scope,
+        session: null,
+        state: 'ready',
+        onStartRecording: vi.fn(),
+        onFinishSpeaking: vi.fn(),
+        onCancel: vi.fn(),
+      }
+
+      renderRetellingView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('← 返回文章')
+      expect(html).toContain('第 1–2 段')
+      expect(html).toContain('关键词与记忆线索')
+      expect(html).toContain('全文已隐藏。请根据提取的关键词线索指引进行复述。')
+      expect(html).toContain('开始复述')
+      expect(html).toContain('手动交替发言')
+    })
+
+    it('renders retelling recording state with "说完了" in Chinese', () => {
+      const { element, getHtml } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const props: RetellingViewProps = {
+        article: articleWithHighlights,
+        scope,
+        session: null,
+        state: 'recording',
+        onStartRecording: vi.fn(),
+        onFinishSpeaking: vi.fn(),
+        onCancel: vi.fn(),
+      }
+
+      renderRetellingView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('正在倾听… 请根据关键词复述文章内容')
+      expect(html).toContain('说完了')
+    })
+
+    it('renders article view in Chinese', () => {
+      const { element, getHtml } = createMockContainer()
+      const props: ArticleViewProps = {
+        article: articleWithHighlights,
+        onUpdateArticle: vi.fn(),
+        onStartRetelling: vi.fn(),
+        onBack: vi.fn(),
+      }
+
+      renderArticleView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('← 阅读库')
+      expect(html).toContain('开始复述 →')
+      expect(html).toContain('练习范围：')
+      expect(html).toContain('全部段落 (1–3)')
+      expect(html).toContain('自定义范围：')
+      expect(html).toContain('💡 提示：使用鼠标选中文中词汇或短语即可添加为复述关键词')
+    })
+
+    it('renders feedback view in Chinese', () => {
+      const { element, getHtml } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const props: FeedbackViewProps = {
+        article: sampleArticle,
+        scope,
+        transcript: '这是反馈文本。',
+        state: 'responding',
+        session: null,
+        onTryAgain: vi.fn(),
+        onReviewArticle: vi.fn(),
+        onFinishPractice: vi.fn(),
+      }
+
+      renderFeedbackView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('← 返回文章')
+      expect(html).toContain('复述讲评')
+      expect(html).toContain('AI 导师正在点评…')
+      expect(html).toContain('停止发音')
+      expect(html).toContain('完成练习并保存')
+      expect(html).toContain('再练一次（重新录音）')
+      expect(html).toContain('查看文章全文')
+    })
+
+    it('renders home view in Chinese', () => {
+      const { element, getHtml } = createMockContainer()
+      const summaries: readonly ArticleSummary[] = [
+        {
+          id: 'art-1',
+          title: 'Article One',
+          source: 'https://example.com/art1',
+          sourceType: 'url',
+          paragraphCount: 5,
+          highlightCount: 8,
+          updatedAt: Date.now(),
+          lastPractice: {
+            id: 'pr-1',
+            articleId: 'art-1',
+            scope: { startParagraph: 0, endParagraph: 4 },
+            startedAt: 100,
+            finishedAt: 200,
+            feedbackTranscript: 'Good job',
+            isCompleted: true,
+          },
+        },
+      ]
+
+      const props: HomeViewProps = {
+        articles: summaries,
+        onSelectArticle: vi.fn(),
+        onDeleteArticle: vi.fn(),
+        onImportFile: vi.fn(),
+        onImportUrl: vi.fn(),
+        onPasteText: vi.fn(),
+      }
+
+      renderHomeView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('Orbis 英语精读与复述')
+      expect(html).toContain('文章与来源')
+      expect(html).toContain('5 个段落 · 8 个关键词')
+      expect(html).toContain('已复述')
+      expect(html).toContain('删除')
     })
   })
 })

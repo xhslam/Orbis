@@ -218,4 +218,9 @@ export const SAYS = {
     he: 'Things he could not load since he woke up. Each one fell back to a working default, so nothing here stopped him — but a file you edited may not be the one he is using.',
     it: 'Things it could not load since it woke up. Each one fell back to a working default, so nothing here stopped it — but a file you edited may not be the one it is using.',
   },
+  machineSays: {
+    she: 'These settings apply whoever she is.',
+    he: 'These settings apply whoever he is.',
+    it: 'These settings apply whatever it is.',
+  },
 } as const satisfies Readonly<Record<string, ByPronoun | string>>

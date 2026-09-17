@@ -1,14 +1,21 @@
 /* Orbis Reading & Retelling styles */
 
-* {
+.reading-app,
+.reading-app *,
+.modal-dialog,
+.modal-dialog * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html,
-body {
+.reading-app {
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
@@ -27,7 +34,8 @@ body {
 
 /* ---- Common Buttons & Forms -------------------------------------------- */
 
-.btn {
+.reading-app .btn,
+.modal-dialog .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -45,68 +53,81 @@ body {
     color var(--duration-fast);
 }
 
-.btn:disabled {
+.reading-app .btn:disabled,
+.modal-dialog .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.btn-primary {
+.reading-app .btn-primary,
+.modal-dialog .btn-primary {
   background: var(--ink);
   color: var(--paper);
   border-color: var(--ink);
 }
 
-.btn-primary:hover:not(:disabled) {
+.reading-app .btn-primary:hover:not(:disabled),
+.modal-dialog .btn-primary:hover:not(:disabled) {
   background: var(--ink-2);
   border-color: var(--ink-2);
 }
 
-.btn-secondary {
+.reading-app .btn-secondary,
+.modal-dialog .btn-secondary {
   background: var(--paper-2);
   color: var(--ink);
   border-color: var(--rule);
 }
 
-.btn-secondary:hover:not(:disabled) {
+.reading-app .btn-secondary:hover:not(:disabled),
+.modal-dialog .btn-secondary:hover:not(:disabled) {
   background: var(--paper-3);
   border-color: var(--rule-2);
 }
 
-.btn-ghost {
+.reading-app .btn-ghost,
+.modal-dialog .btn-ghost {
   background: transparent;
   color: var(--ink-2);
   border-color: transparent;
 }
 
-.btn-ghost:hover:not(:disabled) {
+.reading-app .btn-ghost:hover:not(:disabled),
+.modal-dialog .btn-ghost:hover:not(:disabled) {
   background: var(--paper-2);
   color: var(--ink);
 }
 
-.btn-success {
+.reading-app .btn-success,
+.modal-dialog .btn-success {
   background: #15803d;
   color: var(--paper);
   border-color: #15803d;
 }
 
-.btn-success:hover:not(:disabled) {
+.reading-app .btn-success:hover:not(:disabled),
+.modal-dialog .btn-success:hover:not(:disabled) {
   background: #166534;
   border-color: #166534;
 }
 
-.btn-large {
+.reading-app .btn-large,
+.modal-dialog .btn-large {
   padding: var(--s3) var(--s7);
   font-size: var(--t-lead);
   border-radius: var(--r-pill);
 }
 
-.btn-sm {
+.reading-app .btn-sm,
+.modal-dialog .btn-sm {
   padding: var(--s1) var(--s2);
   font-size: var(--t-cap);
 }
 
-.text-input,
-.textarea-input {
+.reading-app .text-input,
+.modal-dialog .text-input,
+.reading-app .textarea-input,
+.modal-dialog .textarea-input {
   width: 100%;
   padding: var(--s2) var(--s3);
   border: var(--s-px) solid var(--rule);
@@ -118,12 +139,15 @@ body {
   outline: none;
 }
 
-.text-input:focus,
-.textarea-input:focus {
+.reading-app .text-input:focus,
+.modal-dialog .text-input:focus,
+.reading-app .textarea-input:focus,
+.modal-dialog .textarea-input:focus {
   border-color: var(--ink-2);
 }
 
-.number-input {
+.reading-app .number-input,
+.modal-dialog .number-input {
   width: 64px;
   padding: var(--s1) var(--s2);
   border: var(--s-px) solid var(--rule);
@@ -132,12 +156,13 @@ body {
   font-size: var(--t-data);
 }
 
-.number-input:disabled {
+.reading-app .number-input:disabled,
+.modal-dialog .number-input:disabled {
   opacity: 0.5;
   background: var(--paper-2);
 }
 
-.badge {
+.reading-app .badge {
   display: inline-flex;
   align-items: center;
   padding: var(--s0) var(--s2);
@@ -148,17 +173,17 @@ body {
   text-transform: uppercase;
 }
 
-.badge-success {
+.reading-app .badge-success {
   background: rgba(22, 163, 74, 0.15);
   color: #15803d;
 }
 
-.badge-neutral {
+.reading-app .badge-neutral {
   background: var(--paper-3);
   color: var(--ink-3);
 }
 
-.type-pill {
+.reading-app .type-pill {
   display: inline-flex;
   padding: var(--s0) var(--s2);
   border-radius: var(--r-part);

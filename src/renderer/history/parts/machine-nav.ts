@@ -23,6 +23,30 @@ import { PANES } from '../../settings/panes'
  * v2 groups by space, and a rule under every item is a mark doing what the gap
  * already does.
  */
+import { getLanguage } from '../../i18n'
+
+function getNavLabel(id: string, defaultLabel: string): string {
+  if (getLanguage() !== 'zh') return defaultLabel
+  switch (id) {
+    case 'looking':
+      return '信息检索'
+    case 'hearing':
+      return '语音倾听'
+    case 'prompts':
+      return '提示词指令'
+    case 'on-screen':
+      return '界面与显示'
+    case 'keys':
+      return '快捷键'
+    case 'storage':
+      return '存储与文件'
+    case 'about':
+      return '关于本机'
+    default:
+      return defaultLabel
+  }
+}
+
 export function machineNav(
   view: SettingsView,
   openGroup: string,
@@ -43,7 +67,8 @@ export function machineNav(
     */
     const numeral = element('span', 'tab-n', String(at + 1))
     numeral.setAttribute('aria-hidden', 'true')
-    button.append(numeral, element('span', 'tab-label', paneLabel(one.label, view.pronoun)))
+    const rawLabel = paneLabel(one.label, view.pronoun)
+    button.append(numeral, element('span', 'tab-label', getNavLabel(one.id, rawLabel)))
     /*
       A dot means somebody should look, not that something is off.
 

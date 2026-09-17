@@ -6,14 +6,16 @@ import { type Pane, type Field, field, options } from '../pane'
 import { HALO_LABELS } from '../panes-says'
 import { forPronoun } from '@shared/pronoun'
 
+import { getLanguage, setLanguage } from '../../i18n'
+
 /**
- * The three settings this group holds, named once.
+ * The settings this group holds, named once.
  *
  * Keywords are what somebody TYPES, which is rarely what the setting is called:
  * nobody hunting for the ring around her face types "halo", and nobody looking
  * for how long she waits before sleeping types "rest". See `Field`.
  */
-const FIELDS: Readonly<Record<'halo' | 'chip' | 'rest', Field>> = {
+const FIELDS: Readonly<Record<'halo' | 'chip' | 'rest' | 'language', Field>> = {
   halo: {
     id: 'halo',
     label: 'Halo',
@@ -32,6 +34,11 @@ const FIELDS: Readonly<Record<'halo' | 'chip' | 'rest', Field>> = {
     label: 'Rest',
     keywords: ['sleep', 'idle', 'timeout', 'disconnect', 'after minutes'],
   },
+  language: {
+    id: 'language',
+    label: 'Language',
+    keywords: ['language', 'locale', 'chinese', 'english', 'i18n', '中文', '语言'],
+  },
 }
 
 /** Where she sits, and where her words go when she has any. */
@@ -39,7 +46,7 @@ export const ON_SCREEN: Pane = {
   id: 'on-screen',
   label: 'On screen',
   attention: () => null,
-  fields: () => [FIELDS.halo, FIELDS.chip, FIELDS.rest],
+  fields: () => [FIELDS.halo, FIELDS.chip, FIELDS.rest, FIELDS.language],
   render(view, handlers) {
     /*
       THREE answers, so a select rather than a switch.
@@ -127,6 +134,21 @@ export const ON_SCREEN: Pane = {
       handlers.screen({ sleepAfterMinutes: Number(rest.value) })
     })
 
+    const currentLang = getLanguage()
+    const langSelect = document.createElement('select')
+    options(
+      langSelect,
+      [
+        { value: 'en', label: 'English' },
+        { value: 'zh', label: '简体中文' },
+      ],
+      currentLang,
+    )
+    langSelect.addEventListener('change', () => {
+      const next = langSelect.value === 'zh' ? 'zh' : 'en'
+      setLanguage(next)
+    })
+
     /*
       EACH NOTE INSIDE THE SECTION IT IS ABOUT.
 
@@ -140,6 +162,12 @@ export const ON_SCREEN: Pane = {
       field(FIELDS.halo, view, halo, { note: forPronoun(SAYS.halo, view.pronoun) }),
       field(FIELDS.chip, view, chipSwitch, { note: forPronoun(SAYS.chip, view.pronoun) }),
       field(FIELDS.rest, view, rest, { note: forPronoun(SAYS.rests, view.pronoun) }),
+      field(FIELDS.language, view, langSelect, {
+        note:
+          currentLang === 'zh'
+            ? '软件界面显示语言（English / 简体中文）。'
+            : 'Interface display language (English / 简体中文).',
+      }),
     ]
   },
 }

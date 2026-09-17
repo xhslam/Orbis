@@ -1,5 +1,6 @@
 import { getKeywordsForScope, type Article, type PracticeScope } from '@shared/reading/article'
 import type { ReadingVoiceSession, RetellingState } from '../audio/reading-session'
+import { t } from '../../i18n'
 
 function escapeHtml(text: string): string {
   return text
@@ -11,16 +12,18 @@ function escapeHtml(text: string): string {
 }
 
 export function renderKeywordsSummary(article: Article, scope: PracticeScope): string {
+  const i18n = t()
   const paragraphKeywords = getKeywordsForScope(article, scope)
   const items = paragraphKeywords.map((item) => {
     const pNum = item.paragraphIndex + 1
+    const pLabel = i18n.paragraphItem(pNum)
     if (item.keywords.length === 0) {
-      return `<div class="keyword-paragraph-row"><span class="paragraph-badge">Paragraph ${pNum}</span><span class="no-keywords">No keywords marked</span></div>`
+      return `<div class="keyword-paragraph-row"><span class="paragraph-badge">${pLabel}</span><span class="no-keywords">${i18n.noKeywordsMarked}</span></div>`
     }
     const tags = item.keywords
       .map((k) => `<span class="keyword-tag">${escapeHtml(k)}</span>`)
       .join(' ')
-    return `<div class="keyword-paragraph-row"><span class="paragraph-badge">Paragraph ${pNum}</span><div class="keyword-tags">${tags}</div></div>`
+    return `<div class="keyword-paragraph-row"><span class="paragraph-badge">${pLabel}</span><div class="keyword-tags">${tags}</div></div>`
   })
   return items.join('\n')
 }
@@ -36,6 +39,7 @@ export interface RetellingViewProps {
 }
 
 export function renderRetellingView(props: RetellingViewProps, container: HTMLElement): void {
+  const i18n = t()
   const isRecording = props.state === 'recording'
   const isEvaluating = props.state === 'evaluating'
   const isOpening = props.state === 'opening' || props.state === 'configuring'
@@ -44,22 +48,22 @@ export function renderRetellingView(props: RetellingViewProps, container: HTMLEl
 
   const startP = props.scope.startParagraph + 1
   const endP = props.scope.endParagraph + 1
-  const scopeLabel = startP === endP ? `Paragraph ${startP}` : `Paragraphs ${startP}–${endP}`
+  const scopeLabel = i18n.paragraphScope(startP, endP)
 
   const keywordsHtml = renderKeywordsSummary(props.article, props.scope)
 
-  let statusText = 'Ready to start'
-  if (isOpening) statusText = 'Connecting voice session…'
-  else if (isReady) statusText = 'Click "Start Retelling" to begin speaking'
-  else if (isRecording) statusText = 'Listening… Retell the story using your keywords'
-  else if (isEvaluating) statusText = 'Submitting your retelling for evaluation…'
+  let statusText = i18n.statusReady
+  if (isOpening) statusText = i18n.statusConnecting
+  else if (isReady) statusText = i18n.statusClickToBegin
+  else if (isRecording) statusText = i18n.statusListening
+  else if (isEvaluating) statusText = i18n.statusEvaluating
   else if (hasError) statusText = (props.state as { error: string }).error
 
   container.innerHTML = `
     <div class="retelling-container">
       <header class="view-header">
         <div class="header-left">
-          <button type="button" class="btn btn-ghost" id="retell-back-btn">← Back to Article</button>
+          <button type="button" class="btn btn-ghost" id="retell-back-btn">${i18n.backToArticle}</button>
           <div class="header-title-group">
             <h1 class="view-title">${escapeHtml(props.article.title)}</h1>
             <span class="scope-pill">${scopeLabel}</span>
@@ -70,8 +74,8 @@ export function renderRetellingView(props: RetellingViewProps, container: HTMLEl
       <div class="retelling-layout">
         <aside class="keywords-panel">
           <div class="keywords-panel-header">
-            <h2 class="panel-heading">Keywords & Memory Cues</h2>
-            <p class="panel-subtitle">Full article text is hidden. Use these cues to guide your retelling.</p>
+            <h2 class="panel-heading">${i18n.keywordsHeading}</h2>
+            <p class="panel-subtitle">${i18n.keywordsSubtitle}</p>
           </div>
           <div class="keywords-list">
             ${keywordsHtml}
@@ -96,17 +100,17 @@ export function renderRetellingView(props: RetellingViewProps, container: HTMLEl
               ${
                 !isRecording
                   ? `<button type="button" class="btn btn-primary btn-large" id="start-speaking-btn" ${isOpening || isEvaluating ? 'disabled' : ''}>
-                      Start Retelling
+                      ${i18n.startRetellingAction}
                     </button>`
                   : `<button type="button" class="btn btn-success btn-large" id="finish-speaking-btn">
-                      说完了 (Finished Speaking)
+                      ${i18n.finishSpeakingAction}
                     </button>`
               }
             </div>
 
             <div class="stage-instructions">
               <p class="instruction-note">
-                <strong>Manual Turn Taking:</strong> Pauses for thought will not interrupt you. Click "说完了" when you have finished your complete retelling.
+                ${i18n.turnTakingInstruction}
               </p>
             </div>
           </div>
