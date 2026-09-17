@@ -5,7 +5,11 @@ import {
   type RetellingViewProps,
 } from './components/retelling-view'
 import { renderHomeView, type HomeViewProps } from './components/home-view'
-import { renderArticleView, type ArticleViewProps } from './components/article-view'
+import {
+  renderArticleView,
+  resetTipStateForTesting,
+  type ArticleViewProps,
+} from './components/article-view'
 import { renderFeedbackView, type FeedbackViewProps } from './components/feedback-view'
 import {
   createArticleFromText,
@@ -41,23 +45,53 @@ function createMockContainer() {
         disabled: false,
         showModal: vi.fn(),
         close: vi.fn(),
+        remove: vi.fn(),
       }
     },
     querySelectorAll: () => [],
+    appendChild: (child: unknown) => {
+      const node = child as { outerHTML?: string; innerHTML?: string }
+      if (node?.outerHTML) {
+        html += node.outerHTML
+      } else if (node?.innerHTML) {
+        html += node.innerHTML
+      }
+    },
   }
 
   return {
     element: element as unknown as HTMLElement,
     getHtml: () => html,
+    trigger: (selector: string, event = 'click', arg?: unknown) => {
+      const list = listeners.get(selector) ?? []
+      for (const item of list) {
+        if (item.event === event) item.fn(arg ?? { stopPropagation: () => {} })
+      }
+    },
   }
 }
 
 describe('Reading & Retelling UI Components', () => {
+  const storageMap = new Map<string, string>()
+
   beforeEach(() => {
+    storageMap.clear()
+    const mockStorage = {
+      getItem: (key: string) => storageMap.get(key) ?? null,
+      setItem: (key: string, val: string) => {
+        storageMap.set(key, val)
+      },
+      removeItem: (key: string) => storageMap.delete(key),
+      clear: () => storageMap.clear(),
+    }
+    vi.stubGlobal('localStorage', mockStorage)
+    resetTipStateForTesting()
     setLanguage('en')
   })
 
   afterEach(() => {
+    vi.unstubAllGlobals()
+    resetTipStateForTesting()
     setLanguage('en')
   })
 
@@ -182,6 +216,8 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('Start Retelling →')
       expect(html).toContain('Practice Scope:')
       expect(html).toContain('All paragraphs (1–3)')
+      expect(html).toContain('id="reading-display-settings-btn"')
+      expect(html).toContain('Display Settings')
     })
   })
 
@@ -291,6 +327,28 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('Excellent summary.')
       expect(html).not.toContain('Stop Voice')
     })
+
+    it('renders error state when evaluation fails', () => {
+      const { element, getHtml } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const props: FeedbackViewProps = {
+        article: sampleArticle,
+        scope,
+        transcript: '',
+        state: { error: 'Voice service unavailable' },
+        session: null,
+        onTryAgain: vi.fn(),
+        onReviewArticle: vi.fn(),
+        onFinishPractice: vi.fn(),
+      }
+
+      renderFeedbackView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('Evaluation Failed')
+      expect(html).toContain('Voice service unavailable')
+      expect(html).not.toContain('AI Coach is Speaking…')
+    })
   })
 
   describe('Chinese localization (zh)', () => {
@@ -370,6 +428,7 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('全部段落 (1–3)')
       expect(html).toContain('自定义范围：')
       expect(html).toContain('💡 提示：使用鼠标选中文中词汇或短语即可添加为复述关键词')
+      expect(html).toContain('排版设置')
     })
 
     it('renders feedback view in Chinese', () => {
@@ -438,6 +497,92 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('5 个段落 · 8 个关键词')
       expect(html).toContain('已复述')
       expect(html).toContain('删除')
+    })
+
+    it('renders article view in Chinese with tip banner on first visit', () => {
+      setLanguage('zh')
+      const { element, getHtml } = createMockContainer()
+      const props: ArticleViewProps = {
+        article: articleWithHighlights,
+        onUpdateArticle: vi.fn(),
+        onStartRetelling: vi.fn(),
+        onBack: vi.fn(),
+      }
+
+      renderArticleView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('← 阅读库')
+      expect(html).toContain('开始复述 →')
+      expect(html).toContain('练习范围：')
+      expect(html).toContain('全部段落 (1–3)')
+      expect(html).toContain('自定义范围：')
+      expect(html).toContain('💡 提示：使用鼠标选中文中词汇或短语即可添加为复述关键词')
+      expect(html).toContain('排版设置')
+      expect(html).toContain('id="close-hint-banner"')
+    })
+  })
+
+  describe('ArticleView display settings and tip banner', () => {
+    it('calls onOpenSettings when display settings button is clicked', () => {
+      const { element, trigger } = createMockContainer()
+      const onOpenSettings = vi.fn()
+      const props: ArticleViewProps = {
+        article: sampleArticle,
+        onOpenSettings,
+        onUpdateArticle: vi.fn(),
+        onStartRetelling: vi.fn(),
+        onBack: vi.fn(),
+      }
+
+      renderArticleView(props, element)
+      trigger('#reading-display-settings-btn', 'click')
+      expect(onOpenSettings).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows hint banner on first visit and allows closing it', () => {
+      const { element, getHtml, trigger } = createMockContainer()
+      const props: ArticleViewProps = {
+        article: sampleArticle,
+        onUpdateArticle: vi.fn(),
+        onStartRetelling: vi.fn(),
+        onBack: vi.fn(),
+      }
+
+      renderArticleView(props, element)
+      expect(getHtml()).toContain('id="reading-hint-banner"')
+      expect(getHtml()).toContain('id="close-hint-banner"')
+
+      trigger('#close-hint-banner', 'click')
+      expect(localStorage.getItem('orbis:reading:keyword-tip-dismissed')).toBe('true')
+    })
+
+    it('does not show hint banner when already dismissed in localStorage', () => {
+      localStorage.setItem('orbis:reading:keyword-tip-dismissed', 'true')
+      const { element, getHtml } = createMockContainer()
+      const props: ArticleViewProps = {
+        article: sampleArticle,
+        onUpdateArticle: vi.fn(),
+        onStartRetelling: vi.fn(),
+        onBack: vi.fn(),
+      }
+
+      renderArticleView(props, element)
+      expect(getHtml()).not.toContain('id="reading-hint-banner"')
+    })
+
+    it('does not show hint banner on subsequent visits when already shown', () => {
+      localStorage.setItem('orbis:reading:keyword-tip-seen', 'true')
+      const { element, getHtml } = createMockContainer()
+      const props: ArticleViewProps = {
+        article: sampleArticle,
+        onUpdateArticle: vi.fn(),
+        onStartRetelling: vi.fn(),
+        onBack: vi.fn(),
+      }
+
+      renderArticleView(props, element)
+      expect(getHtml()).not.toContain('id="reading-hint-banner"')
     })
   })
 })

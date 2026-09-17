@@ -25,6 +25,8 @@ export function buildRetellingSessionConfig(options: RetellingSessionOptions): u
           noise_reduction: { type: 'far_field' },
           turn_detection: {
             type: 'server_vad',
+            threshold: 0.5,
+            silence_duration_ms: 200,
             create_response: false,
             interrupt_response: false,
           },
@@ -132,14 +134,23 @@ export async function openReadingVoiceSession(
     const frame = parseServerFrame(event.data)
 
     if (frame.kind === 'saying') {
+      if (isEvaluating) {
+        isEvaluating = false
+        handlers.onStateChange('responding')
+      }
       currentTranscript += frame.delta
       handlers.onTranscriptDelta(frame.delta)
     } else if (frame.kind === 'said') {
-      handlers.onTranscriptDone(frame.transcript || currentTranscript)
+      currentTranscript = frame.transcript || currentTranscript
+      handlers.onTranscriptDone(currentTranscript)
       isEvaluating = false
-      handlers.onStateChange('ready')
-    } else if (frame.kind === 'audio-buffer' && frame.phase === 'started') {
-      handlers.onStateChange('responding')
+    } else if (frame.kind === 'audio-buffer') {
+      if (frame.phase === 'started') {
+        isEvaluating = false
+        handlers.onStateChange('responding')
+      } else if (frame.phase === 'stopped' || frame.phase === 'cleared') {
+        handlers.onStateChange('ready')
+      }
     } else if (frame.kind === 'error') {
       isEvaluating = false
       handlers.onStateChange({ error: frame.message ?? 'Voice service error' })
@@ -200,24 +211,26 @@ export async function openReadingVoiceSession(
       isRecording = false
       isEvaluating = true
 
-      // Mute microphone immediately to prevent feedback/speaker echo
+      // Mute microphone immediately to prevent feedback/speaker echo and signal silence to server VAD
       localStream.getAudioTracks().forEach((t) => {
         t.enabled = false
       })
       handlers.onStateChange('evaluating')
 
-      // Commit trailing audio buffer
-      channel.send(JSON.stringify({ type: 'input_audio_buffer.commit' }))
-
-      // Send manual response.create
+      // Send manual response.create after a brief tick to allow server VAD to detect end of speech
       const responseEvent: Record<string, unknown> = {
         type: 'response.create',
-        response: {
-          modalities: ['audio', 'text'],
-          ...(instructionsOverride ? { instructions: instructionsOverride } : {}),
-        },
+        response: instructionsOverride ? { instructions: instructionsOverride } : {},
       }
-      channel.send(JSON.stringify(responseEvent))
+      setTimeout(() => {
+        if (channel.readyState === 'open' && isEvaluating) {
+          try {
+            channel.send(JSON.stringify(responseEvent))
+          } catch (e) {
+            handlers.onStateChange({ error: e instanceof Error ? e.message : String(e) })
+          }
+        }
+      }, 200)
       return true
     },
 
@@ -225,9 +238,12 @@ export async function openReadingVoiceSession(
       remoteStream?.getAudioTracks().forEach((t) => {
         t.enabled = false
       })
+      handlers.onStateChange('ready')
     },
 
     close() {
+      isEvaluating = false
+      isRecording = false
       localStream.getTracks().forEach((t) => t.stop())
       pc.close()
       handlers.onStateChange('closed')

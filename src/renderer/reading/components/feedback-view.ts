@@ -24,7 +24,9 @@ export interface FeedbackViewProps {
 
 export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElement): void {
   const i18n = t()
-  const isResponding = props.state === 'responding' || props.state === 'evaluating'
+  const isError = typeof props.state === 'object' && 'error' in props.state
+  const errorMessage = isError ? props.state.error : null
+  const isResponding = !isError && (props.state === 'responding' || props.state === 'evaluating')
   const startP = props.scope.startParagraph + 1
   const endP = props.scope.endParagraph + 1
   const scopeLabel = i18n.paragraphScope(startP, endP)
@@ -57,15 +59,20 @@ export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElem
       <main class="feedback-main">
         <div class="feedback-card">
           <div class="feedback-card-header">
-            <div class="feedback-status-badge ${isResponding ? 'speaking' : 'complete'}">
-              ${isResponding ? i18n.coachSpeaking : i18n.feedbackComplete}
+            <div class="feedback-status-badge ${isError ? 'error' : isResponding ? 'speaking' : 'complete'}">
+              ${isError ? i18n.feedbackError : isResponding ? i18n.coachSpeaking : i18n.feedbackComplete}
             </div>
             <h2 class="card-title">${escapeHtml(props.article.title)}</h2>
           </div>
 
           <div class="feedback-body">
             ${
-              props.transcript.length === 0 && isResponding
+              isError
+                ? `<div class="evaluating-placeholder error-box">
+                    <p style="color: #b91c1c; font-weight: 500; margin-bottom: 8px;">${escapeHtml(errorMessage ?? '服务异常')}</p>
+                    <p style="color: #6b7280; font-size: 0.9em;">${i18n.feedbackErrorTip}</p>
+                  </div>`
+                : props.transcript.length === 0 && isResponding
                 ? `<div class="evaluating-placeholder">
                     <div class="spinner"></div>
                     <p>${i18n.evaluatingPlaceholder}</p>
