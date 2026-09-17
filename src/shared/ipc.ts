@@ -1246,6 +1246,7 @@ export const READING_CHANNELS = [
   'reading:practice:save',
   'reading:voice:open',
   'reading:voice:sdp',
+  'reading:voice:close',
   'reading:open',
 ] as const
 

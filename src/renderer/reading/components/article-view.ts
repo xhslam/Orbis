@@ -6,6 +6,7 @@ import {
   type Paragraph,
   type PracticeScope,
 } from '@shared/reading/article'
+import { t, getLanguage } from '../../i18n'
 
 function escapeHtml(text: string): string {
   return text
@@ -19,6 +20,7 @@ function escapeHtml(text: string): string {
 function renderParagraphWithHighlights(
   paragraph: Paragraph,
   highlights: readonly Highlight[],
+  removeTitle: string,
 ): string {
   const pHighlights = highlights
     .filter((h) => h.paragraphIndex === paragraph.index)
@@ -36,7 +38,7 @@ function renderParagraphWithHighlights(
       result += escapeHtml(paragraph.text.slice(cursor, h.startOffset))
     }
     const chunk = paragraph.text.slice(h.startOffset, h.endOffset)
-    result += `<mark class="keyword-highlight" data-highlight-id="${h.id}" title="Click to remove keyword">${escapeHtml(chunk)}</mark>`
+    result += `<mark class="keyword-highlight" data-highlight-id="${h.id}" title="${escapeHtml(removeTitle)}">${escapeHtml(chunk)}</mark>`
     cursor = h.endOffset
   }
 
@@ -49,14 +51,18 @@ function renderParagraphWithHighlights(
 
 export interface ArticleViewProps {
   readonly article: Article
+  readonly scope?: PracticeScope
+  readonly onScopeChange?: (scope: PracticeScope) => void
   readonly onUpdateArticle: (updated: Article) => void
   readonly onStartRetelling: (scope: PracticeScope) => void
   readonly onBack: () => void
 }
 
 export function renderArticleView(props: ArticleViewProps, container: HTMLElement): void {
+  const i18n = t()
+  const isZh = getLanguage() === 'zh'
   const totalP = props.article.paragraphs.length
-  let currentScope: PracticeScope = {
+  let currentScope: PracticeScope = props.scope ?? {
     startParagraph: 0,
     endParagraph: totalP - 1,
   }
@@ -64,7 +70,11 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
   const paragraphCards = props.article.paragraphs
     .map((p) => {
       const pNum = p.index + 1
-      const innerHtml = renderParagraphWithHighlights(p, props.article.highlights)
+      const innerHtml = renderParagraphWithHighlights(
+        p,
+        props.article.highlights,
+        i18n.removeHighlightTooltip,
+      )
       return `
         <div class="paragraph-block" data-index="${p.index}">
           <div class="paragraph-gutter">
@@ -78,11 +88,13 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
 
   const highlightCount = props.article.highlights.length
 
+  const isCustom = currentScope.startParagraph !== 0 || currentScope.endParagraph !== totalP - 1
+
   container.innerHTML = `
     <div class="article-container">
       <header class="view-header">
         <div class="header-left">
-          <button type="button" class="btn btn-ghost" id="article-back-btn">← Library</button>
+          <button type="button" class="btn btn-ghost" id="article-back-btn">${i18n.backToLibrary}</button>
           <div class="header-title-group">
             <h1 class="view-title">${escapeHtml(props.article.title)}</h1>
             <span class="source-tag">${escapeHtml(props.article.source)}</span>
@@ -91,34 +103,35 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
 
         <div class="header-right">
           <button type="button" class="btn btn-ghost btn-sm" id="clear-highlights-btn" ${highlightCount === 0 ? 'disabled' : ''}>
-            Clear Highlights (${highlightCount})
+            ${i18n.clearHighlights(highlightCount)}
           </button>
           <button type="button" class="btn btn-primary" id="start-retell-btn">
-            Start Retelling →
+            ${i18n.startRetellingBtn}
           </button>
         </div>
       </header>
 
       <div class="practice-scope-bar">
-        <span class="scope-label">Practice Scope:</span>
+        <span class="scope-label">${i18n.practiceScope}</span>
         <label class="scope-option">
-          <input type="radio" name="scope-mode" value="all" checked id="scope-all-radio" />
-          All paragraphs (1–${totalP})
+          <input type="radio" name="scope-mode" value="all" ${!isCustom ? 'checked' : ''} id="scope-all-radio" />
+          ${i18n.allParagraphs(totalP)}
         </label>
         <label class="scope-option">
-          <input type="radio" name="scope-mode" value="custom" id="scope-custom-radio" />
-          Custom range:
+          <input type="radio" name="scope-mode" value="custom" ${isCustom ? 'checked' : ''} id="scope-custom-radio" />
+          ${i18n.customRange}
         </label>
         <div class="scope-range-inputs">
-          <span>From P.</span>
-          <input type="number" id="scope-start" min="1" max="${totalP}" value="1" class="number-input" disabled />
-          <span>to P.</span>
-          <input type="number" id="scope-end" min="1" max="${totalP}" value="${totalP}" class="number-input" disabled />
+          <span>${i18n.fromParagraph}</span>
+          <input type="number" id="scope-start" min="1" max="${totalP}" value="${currentScope.startParagraph + 1}" class="number-input" ${!isCustom ? 'disabled' : ''} />
+          <span>${i18n.toParagraph}</span>
+          <input type="number" id="scope-end" min="1" max="${totalP}" value="${currentScope.endParagraph + 1}" class="number-input" ${!isCustom ? 'disabled' : ''} />
+          ${isZh ? '<span>段</span>' : ''}
         </div>
       </div>
 
       <div class="hint-banner">
-        💡 <strong>Tip:</strong> Select any word or phrase with your mouse to highlight it as a retelling keyword. Click a highlight to remove it.
+        ${i18n.keywordTip}
       </div>
 
       <main class="reading-canvas">
@@ -153,6 +166,7 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
         Math.max(s + 1, Math.min(totalP, parseInt(endInput?.value || String(totalP), 10))) - 1
       currentScope = { startParagraph: s, endParagraph: e }
     }
+    props.onScopeChange?.(currentScope)
   }
 
   scopeAll?.addEventListener('change', updateScope)
@@ -167,10 +181,7 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
 
   // Wire clear highlights
   container.querySelector('#clear-highlights-btn')?.addEventListener('click', () => {
-    if (
-      props.article.highlights.length > 0 &&
-      confirm('Remove all highlights from this article?')
-    ) {
+    if (props.article.highlights.length > 0 && confirm(i18n.confirmClearHighlights)) {
       const cleared: Article = {
         ...props.article,
         highlights: [],

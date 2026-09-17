@@ -142,6 +142,9 @@ const reading: OrbisReadingApi = {
     return (await ipcRenderer.invoke(guardReading('reading:voice:sdp'), offer, sessionToken)) as
       { ok: true; answer: string } | { ok: false; problem: unknown }
   },
+  async closeVoice() {
+    return (await ipcRenderer.invoke(guardReading('reading:voice:close'))) as { ok: boolean }
+  },
 }
 
 const api: MochiApi = {
@@ -378,6 +381,7 @@ if (!ROLES.has(role)) {
   contextBridge.exposeInMainWorld('mochiSettings', settings)
   contextBridge.exposeInMainWorld('orbisHistory', history)
   contextBridge.exposeInMainWorld('orbisSettings', settings)
+  contextBridge.exposeInMainWorld('orbisReading', reading)
 } else {
   contextBridge.exposeInMainWorld('mochi', api)
   contextBridge.exposeInMainWorld('orbis', api)

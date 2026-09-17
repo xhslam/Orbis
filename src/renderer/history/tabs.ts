@@ -27,7 +27,7 @@
  * fails before any assertion runs, because the suite is node with no DOM
  * emulator. The wrapping is the half people get wrong and it needs no DOM.
  */
-export type Place = 'cast' | 'archive' | 'permits' | 'machine'
+export type Place = 'cast' | 'archive' | 'permits' | 'machine' | 'reading'
 
 /**
  * A view on her page.
@@ -59,9 +59,11 @@ export interface View {
  */
 export const VIEWS: readonly View[] = [{ id: 'cast' }, { id: 'archive' }, { id: 'permits' }]
 
+export type HersPlace = 'cast' | 'archive' | 'permits'
+
 /** Whether a place is one of her views, rather than the machine's page. */
-export function isHers(place: Place): boolean {
-  return VIEWS.some((one) => one.id === place)
+export function isHers(place: Place): place is HersPlace {
+  return place === 'cast' || place === 'archive' || place === 'permits'
 }
 
 /**

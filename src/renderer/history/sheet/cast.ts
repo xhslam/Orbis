@@ -15,6 +15,7 @@ import { type ShelfCharacter, type ShelfView } from '@shared/history-window'
 import { type Pronoun, forPronoun } from '@shared/pronoun'
 import { anchor } from '../../field'
 import { herDangerous } from './fields'
+import { getLanguage } from '../../i18n'
 /**
  * Making a character, from the rail.
  *
@@ -85,13 +86,14 @@ export function castActions(view: ShelfView, handlers: ShelfHandlers): readonly 
     return button
   }
 
+  const isZh = getLanguage() === 'zh'
   return [
-    word('New', () => {
+    word(isZh ? '新建' : 'New', () => {
       handlers.persona({ kind: 'create', name: NEW_NAME })
     }),
     // "Duplicate", not "Duplicate <her name>". The row sits under her row in the
     // list and the design does not repeat what is directly above it.
-    word('Duplicate', () => {
+    word(isZh ? '复制' : 'Duplicate', () => {
       handlers.persona({ kind: 'duplicate', name: `${worn.name} copy` })
     }),
   ]

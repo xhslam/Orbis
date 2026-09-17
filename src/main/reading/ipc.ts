@@ -13,6 +13,8 @@ import { createMintSlot } from '../voice/mint-slot'
 export function registerReadingIpc(deps: {
   readonly store: ReadingStore
   readonly openReadingWindow: () => BrowserWindow | null
+  readonly pauseCompanion?: () => void
+  readonly resumeCompanion?: () => void
 }): void {
   const mintSlot = createMintSlot()
 
@@ -102,7 +104,13 @@ export function registerReadingIpc(deps: {
     const minted = await mintEphemeralKey({ bearer: bearer.value })
     if (!minted.ok) return { ok: false, problem: minted.problem }
     const token = mintSlot.hold(minted.value)
+    deps.pauseCompanion?.()
     return { ok: true, session: token, model: minted.value.model }
+  })
+
+  ipcMain.handle('reading:voice:close', () => {
+    deps.resumeCompanion?.()
+    return { ok: true }
   })
 
   ipcMain.handle('reading:voice:sdp', async (_e, offer: string, sessionToken: string) => {
@@ -113,10 +121,14 @@ export function registerReadingIpc(deps: {
         problem: { kind: 'unreachable', why: 'Session token invalid or expired' },
       }
     }
-    return await exchangeSdp({
+    const exchanged = await exchangeSdp({
       offer,
       minted: claim.value,
     })
+    if (!exchanged.ok) {
+      return exchanged
+    }
+    return { ok: true, answer: exchanged.value }
   })
 
   ipcMain.on('reading:open', () => {

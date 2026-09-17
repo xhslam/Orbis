@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <title>Orbis</title>
     <link rel="stylesheet" href="../design/tokens.css" />
+    <link rel="stylesheet" href="../reading/style.css" />
     <style>
       /*
         1a, at 1440 x 900: her state, her characters, the one that is open.
@@ -207,6 +208,7 @@
       }
       .rail {
         width: var(--rail-w);
+        min-width: var(--rail-w);
         flex: none;
         display: flex;
         flex-direction: column;
@@ -227,6 +229,45 @@
         */
         padding: var(--s4) var(--s3) 14px;
         overflow-y: auto;
+        overflow-x: hidden;
+        transition:
+          width 0.35s cubic-bezier(0.2, 0, 0, 1),
+          min-width 0.35s cubic-bezier(0.2, 0, 0, 1),
+          padding 0.35s cubic-bezier(0.2, 0, 0, 1);
+        will-change: width, min-width;
+      }
+      .rail-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--s2);
+        margin-bottom: var(--s1);
+        min-height: 28px;
+      }
+      .rail-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        flex: none;
+        border: 0;
+        border-radius: var(--r-part);
+        background: transparent;
+        color: var(--ink-3);
+        cursor: pointer;
+        padding: 0;
+        transition:
+          color var(--duration-fast),
+          background-color var(--duration-fast);
+      }
+      .rail-toggle:hover {
+        color: var(--ink);
+        background: var(--paper-2);
+      }
+      .rail-toggle-icon {
+        display: block;
+        transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
       }
       /* "Two characters" — a heading, and the only one in the rail. */
       /*
@@ -253,6 +294,13 @@
         color: var(--ink-3);
         padding: 0 var(--s2) var(--s3);
         max-width: none;
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        transition:
+          opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s,
+          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
       }
       /* The count is a machine fact and takes the machine face — it is not part
          of the heading beside it. */
@@ -361,6 +409,12 @@
            "worn now" came to need 368px in a 206px column. */
         flex: 1;
         min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        transition:
+          opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s,
+          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+        max-width: 140px;
       }
       .rail-name {
         font-family: var(--sans);
@@ -371,6 +425,9 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        transition:
+          opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s,
+          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
       }
       /*
         The second line under a name, and it is MONO now.
@@ -392,6 +449,7 @@
         font-size: var(--t-micro);
         margin-top: var(--s-px);
         color: var(--ink-3);
+        transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s;
       }
       /*
         The machine's mark: a 30px rounded tile with a 12px square outlined in
@@ -417,7 +475,8 @@
         border-radius: 3px;
         border: 1.5px solid var(--ink-2);
       }
-      .rail-machine[aria-current='true'] .rail-tile {
+      .rail-machine[aria-current='true'] .rail-tile,
+      .rail-reading[aria-current='true'] .rail-tile {
         background: var(--paper);
       }
       .rail-machine[aria-current='true'] .rail-tile::before {
@@ -463,6 +522,12 @@
         display: flex;
         gap: var(--s2);
         padding: 14px var(--s2) 0;
+        max-height: 54px;
+        overflow: hidden;
+        transition:
+          opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s,
+          max-height 0.35s cubic-bezier(0.2, 0, 0, 1),
+          padding 0.35s cubic-bezier(0.2, 0, 0, 1);
       }
       /*
         THE PADDING, and nothing else — it is `button.btn` for everything else.
@@ -500,6 +565,117 @@
         height: var(--s-px);
         background: var(--rule);
         margin: var(--s4) var(--s2) var(--s2);
+        transition: margin 0.35s cubic-bezier(0.2, 0, 0, 1);
+      }
+      /* Collapsed rail state: progressive icon-rail collapse */
+      .rail.collapsed {
+        width: 62px;
+        min-width: 62px;
+        padding: var(--s4) var(--s2) 14px;
+      }
+      .rail.collapsed .rail-top {
+        justify-content: center;
+        margin-bottom: var(--s2);
+      }
+      .rail.collapsed .rail-head {
+        opacity: 0;
+        max-width: 0;
+        padding: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.15s ease-out,
+          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+      }
+      .rail.collapsed .rail-toggle {
+        margin: 0 auto;
+      }
+      .rail.collapsed .rail-toggle-icon {
+        transform: scaleX(-1);
+      }
+      .rail.collapsed .rail-row {
+        padding: var(--s2) 0;
+        justify-content: center;
+        gap: 0;
+      }
+      .rail.collapsed .rail-titles {
+        opacity: 0;
+        max-width: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.15s ease-out,
+          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+      }
+      .rail.collapsed .rail-name {
+        opacity: 0;
+        max-width: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.15s ease-out,
+          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+      }
+      .rail.collapsed .rail-worn,
+      .rail.collapsed .rail-mark {
+        opacity: 0;
+        display: none;
+        pointer-events: none;
+        transition: opacity 0.15s ease-out;
+      }
+      .rail.collapsed .rail-make {
+        opacity: 0;
+        max-height: 0;
+        padding: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.15s ease-out,
+          max-height 0.35s cubic-bezier(0.2, 0, 0, 1),
+          padding 0.35s ease;
+      }
+      .rail.collapsed .rail-row .tile,
+      .rail.collapsed .rail-row .rail-tile {
+        margin: 0 auto;
+      }
+      .rail.collapsed .rail-rule {
+        margin: var(--s3) var(--s1) var(--s2);
+      }
+      /* Machine page language switcher */
+      .machine-subject {
+        display: flex;
+        align-items: center;
+        gap: var(--s3);
+      }
+      .machine-lang-switch {
+        display: inline-flex;
+        align-items: center;
+        margin-left: auto;
+        padding: var(--s0);
+        background: var(--paper-2);
+        border: var(--s-px) solid var(--rule);
+        border-radius: var(--r-card);
+        gap: var(--s0);
+      }
+      .lang-btn {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        color: var(--ink-2);
+        font-family: var(--sans);
+        font-size: var(--t-cap);
+        font-weight: var(--w-medium);
+        padding: var(--s1) var(--s3);
+        border-radius: calc(var(--r-card) - 2px);
+        cursor: pointer;
+        transition:
+          background-color var(--duration-fast),
+          color var(--duration-fast),
+          box-shadow var(--duration-fast);
+      }
+      .lang-btn:hover {
+        color: var(--ink);
+      }
+      .lang-btn[aria-pressed='true'] {
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       }
       /*
         WORN, as a pill on the row it is true of.
@@ -4776,8 +4952,33 @@
           only appears on one tab is a list you have to navigate to in order to
           find out what you could navigate to.
         -->
-        <nav class="rail" aria-label="Characters, and this machine">
-          <p class="rail-head" id="characters-count"></p>
+        <nav class="rail" id="rail" aria-label="Characters, and this machine">
+          <div class="rail-top">
+            <p class="rail-head" id="characters-count"></p>
+            <button
+              class="rail-toggle"
+              id="rail-toggle"
+              type="button"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <svg
+                class="rail-toggle-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="2" y="2" width="12" height="12" rx="2" />
+                <path d="M6 2v12" />
+                <path d="M10.5 6l-2 2 2 2" />
+              </svg>
+            </button>
+          </div>
           <div class="rail-cast" id="characters"></div>
           <div class="rail-make" id="cast-actions"></div>
           <div class="rail-foot">
@@ -4894,8 +5095,16 @@
               <div class="machine-subject">
                 <span class="machine-mark" aria-hidden="true"></span>
                 <div class="machine-titles">
-                  <h1>This machine</h1>
-                  <p class="machine-says">These settings apply whoever she is.</p>
+                  <h1 id="machine-title">This machine</h1>
+                  <p class="machine-says" id="machine-says">These settings apply whoever she is.</p>
+                </div>
+                <div class="machine-lang-switch" role="group" aria-label="Language selection">
+                  <button type="button" class="lang-btn" id="machine-lang-en" data-lang="en">
+                    English
+                  </button>
+                  <button type="button" class="lang-btn" id="machine-lang-zh" data-lang="zh">
+                    简体中文
+                  </button>
                 </div>
               </div>
             </header>
@@ -4903,6 +5112,11 @@
               <nav class="groups" id="nav-groups" aria-label="Groups"></nav>
               <div class="machine-pane" id="machine-pane"></div>
             </div>
+          </section>
+
+          <!-- Reading & Retelling: its own page -->
+          <section class="page reading" id="page-reading" hidden>
+            <div id="reading-app" class="reading-app"></div>
           </section>
           <!--
           INSIDE THE PAGE COLUMN, not across the whole window.

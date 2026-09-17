@@ -2644,6 +2644,14 @@ const readingStore = createReadingStore(app.getPath('userData'))
 registerReadingIpc({
   store: readingStore,
   openReadingWindow: () => showReadingWindow(),
+  pauseCompanion: () => {
+    tellCompanion({ type: '__mochi_asleep__', asleep: true })
+  },
+  resumeCompanion: () => {
+    if (!resting.asleep) {
+      tellCompanion({ type: '__mochi_asleep__', asleep: false })
+    }
+  },
 })
 
 answer('history:list', () => {

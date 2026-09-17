@@ -1,5 +1,6 @@
 import type { Article, PracticeScope } from '@shared/reading/article'
 import type { ReadingVoiceSession, RetellingState } from '../audio/reading-session'
+import { t } from '../../i18n'
 
 function escapeHtml(text: string): string {
   return text
@@ -22,18 +23,19 @@ export interface FeedbackViewProps {
 }
 
 export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElement): void {
+  const i18n = t()
   const isResponding = props.state === 'responding' || props.state === 'evaluating'
   const startP = props.scope.startParagraph + 1
   const endP = props.scope.endParagraph + 1
-  const scopeLabel = startP === endP ? `Paragraph ${startP}` : `Paragraphs ${startP}–${endP}`
+  const scopeLabel = i18n.paragraphScope(startP, endP)
 
   container.innerHTML = `
     <div class="feedback-container">
       <header class="view-header">
         <div class="header-left">
-          <button type="button" class="btn btn-ghost" id="feedback-back-btn">← Back to Article</button>
+          <button type="button" class="btn btn-ghost" id="feedback-back-btn">${i18n.backToArticle}</button>
           <div class="header-title-group">
-            <h1 class="view-title">Retelling Feedback</h1>
+            <h1 class="view-title">${i18n.feedbackTitle}</h1>
             <span class="scope-pill">${scopeLabel}</span>
           </div>
         </div>
@@ -42,12 +44,12 @@ export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElem
           ${
             isResponding
               ? `<button type="button" class="btn btn-secondary btn-sm" id="stop-voice-btn">
-                  Stop Voice
+                  ${i18n.stopVoice}
                 </button>`
               : ''
           }
           <button type="button" class="btn btn-primary" id="finish-practice-btn">
-            Finish Practice & Save
+            ${i18n.finishPractice}
           </button>
         </div>
       </header>
@@ -56,7 +58,7 @@ export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElem
         <div class="feedback-card">
           <div class="feedback-card-header">
             <div class="feedback-status-badge ${isResponding ? 'speaking' : 'complete'}">
-              ${isResponding ? 'AI Coach is Speaking…' : 'Feedback Complete'}
+              ${isResponding ? i18n.coachSpeaking : i18n.feedbackComplete}
             </div>
             <h2 class="card-title">${escapeHtml(props.article.title)}</h2>
           </div>
@@ -66,7 +68,7 @@ export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElem
               props.transcript.length === 0 && isResponding
                 ? `<div class="evaluating-placeholder">
                     <div class="spinner"></div>
-                    <p>Evaluating your retelling against article facts…</p>
+                    <p>${i18n.evaluatingPlaceholder}</p>
                   </div>`
                 : `<div class="transcript-prose" id="transcript-content">
                     ${escapeHtml(props.transcript).replace(/\n/g, '<br />')}
@@ -76,10 +78,10 @@ export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElem
 
           <div class="feedback-actions">
             <button type="button" class="btn btn-secondary" id="try-again-btn">
-              Try Again (Re-record)
+              ${i18n.tryAgain}
             </button>
             <button type="button" class="btn btn-ghost" id="review-article-btn">
-              Review Article Full Text
+              ${i18n.reviewArticle}
             </button>
           </div>
         </div>
