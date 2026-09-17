@@ -47,6 +47,18 @@ export function setLanguage(lang: Language): void {
   } catch {
     // ignore
   }
+  try {
+    if (typeof window !== 'undefined') {
+      const anyWin = window as unknown as {
+        mochiSettings?: { screen: (c: { language?: string }) => void }
+        orbisSettings?: { screen: (c: { language?: string }) => void }
+      }
+      const s = anyWin.mochiSettings ?? anyWin.orbisSettings
+      s?.screen({ language: lang })
+    }
+  } catch {
+    // ignore
+  }
   for (const fn of listeners) {
     try {
       fn(lang)
@@ -185,9 +197,34 @@ export const I18N = {
     finishPractice: 'Finish Practice & Save',
     coachSpeaking: 'AI Coach is Speaking…',
     feedbackComplete: 'Feedback Complete',
+    feedbackError: 'Evaluation Failed',
+    feedbackErrorTip: 'Voice evaluation service encountered an issue. Please try again.',
     evaluatingPlaceholder: 'Evaluating your retelling against article facts…',
     tryAgain: 'Try Again (Re-record)',
     reviewArticle: 'Review Article Full Text',
+
+    // Reading Display Settings (Typography & Layout)
+    displaySettingsBtn: 'Display Settings',
+    displaySettingsTooltip: 'Display & typography settings (width, margin, font, size)',
+    displaySettingsTitle: 'Reading Display & Typography',
+    displaySettingsDesc: 'Adjust maximum content width, page margins, font size and typography.',
+    readingTypographyGroup: 'Reading & Retelling Layout',
+    readingTypographyNote:
+      'Adjust content width, page margins, font size and typography for reading and retelling.',
+    fieldContentWidth: 'Content Width',
+    contentWidthDesc: 'Maximum width for reading content.',
+    fieldPageMargin: 'Page Margin',
+    pageMarginDesc: 'Horizontal padding around the reading canvas.',
+    fieldFontSize: 'Font Size',
+    fontSizeDesc: 'Base text size for article content.',
+    fieldLatinFont: 'Latin Font',
+    latinFontDesc: 'Font family for English text.',
+    fieldCjkFont: 'CJK Font',
+    cjkFontDesc: 'Font family for Chinese / CJK text.',
+    fieldLineHeight: 'Line Height',
+    lineHeightDesc: 'Line spacing for article paragraphs.',
+    resetDefaults: 'Reset to Defaults',
+    close: 'Close',
   },
   zh: {
     // Rail
@@ -315,9 +352,33 @@ export const I18N = {
     finishPractice: '完成练习并保存',
     coachSpeaking: 'AI 导师正在点评…',
     feedbackComplete: '讲评完成',
+    feedbackError: '讲评遇到问题',
+    feedbackErrorTip: '语音评估服务出现异常，请检查网络或点击下方“再练一次”。',
     evaluatingPlaceholder: '正在对比原文要点评估复述内容…',
     tryAgain: '再练一次（重新录音）',
     reviewArticle: '查看文章全文',
+
+    // Reading Display Settings (Typography & Layout)
+    displaySettingsBtn: '排版设置',
+    displaySettingsTooltip: '排版与显示设置（宽度、页边距、字体、字号）',
+    displaySettingsTitle: '阅读与复述排版设置',
+    displaySettingsDesc: '调节文章阅读最大宽度、左右页边距、字体大小与排版类型。',
+    readingTypographyGroup: '阅读与复述排版',
+    readingTypographyNote: '自定义阅读与复述界面的文字字体、大小、最大宽度与页边距。',
+    fieldContentWidth: '内容宽度',
+    contentWidthDesc: '文章正文的最大显示宽度。',
+    fieldPageMargin: '页边距',
+    pageMarginDesc: '阅读区域左右两侧的留白边距。',
+    fieldFontSize: '字体大小',
+    fontSizeDesc: '文章正文的基础字号大小。',
+    fieldLatinFont: '西文字体',
+    latinFontDesc: '英文字母与标点的排版字体。',
+    fieldCjkFont: '中文字体',
+    cjkFontDesc: '中文字符的排版字体。',
+    fieldLineHeight: '行高',
+    lineHeightDesc: '段落正文的行间距倍率。',
+    resetDefaults: '恢复默认设置',
+    close: '关闭',
   },
 } as const
 

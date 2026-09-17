@@ -16,8 +16,17 @@ import { renderFeedbackView } from './components/feedback-view'
 import { renderHomeView } from './components/home-view'
 import { renderRetellingView } from './components/retelling-view'
 import { onLanguageChange, t } from '../i18n'
+import {
+  applyReadingDisplaySettings,
+  getReadingDisplaySettings,
+  onReadingDisplaySettingsChange,
+} from './display-settings'
 
 export type ViewState = 'home' | 'article' | 'retelling' | 'feedback'
+
+export interface ReadingAppOptions {
+  readonly onOpenSettings?: (() => void) | undefined
+}
 
 export interface ReadingApp {
   mount(): Promise<void>
@@ -25,7 +34,7 @@ export interface ReadingApp {
   cleanup(): void
 }
 
-export function createReadingApp(root: HTMLElement): ReadingApp {
+export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions): ReadingApp {
   const api = window.orbisReading
   const speaker = new Audio()
   speaker.autoplay = true
@@ -40,6 +49,14 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
   let practiceRecord: PracticeRecord | null = null
 
   const unsubLang = onLanguageChange(() => {
+    render()
+  })
+
+  // Apply display settings to both root and document element
+  applyReadingDisplaySettings(getReadingDisplaySettings(), root)
+  const unsubDisplay = onReadingDisplaySettingsChange((settings) => {
+    applyReadingDisplaySettings(settings, root)
+    applyReadingDisplaySettings(settings)
     render()
   })
 
@@ -209,6 +226,7 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
         {
           article: currentArticle,
           scope: currentScope,
+          onOpenSettings: options?.onOpenSettings,
           onScopeChange: (scope) => {
             currentScope = scope
           },
@@ -255,6 +273,7 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
           scope: currentScope,
           session,
           state: sessionState,
+          onOpenSettings: options?.onOpenSettings,
           onStartRecording: () => {
             if (!session || (typeof sessionState === 'object' && 'error' in sessionState)) {
               void (async () => {
@@ -268,6 +287,7 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
           },
           onFinishSpeaking: () => {
             if (!session || !currentArticle) return
+            speaker.play().catch(() => {})
             const prompt = buildRetellingSystemPrompt(currentArticle, currentScope)
             const submitted = session.finishSpeaking(prompt)
             if (submitted) {
@@ -366,6 +386,7 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
 
   function cleanup(): void {
     unsubLang()
+    unsubDisplay()
     cleanupSession()
   }
 
