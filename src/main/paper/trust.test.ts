@@ -10,8 +10,9 @@ describe('trusted paper documents', () => {
     expect(registeredPaperRole(sender)).toBe('history')
     expect(registeredPaperRole({ ...sender })).toBeNull()
   })
-  it('allows only explicit history or reading roles, including the legacy role spelling', () => {
+  it('allows only explicit navigation/Paper roles, including the legacy role spelling', () => {
     expect(paperRole(['--orbis-role=history'])).toBe('history')
+    expect(paperRole(['--orbis-role=paper'])).toBe('paper')
     expect(paperRole(['--mochi-role=reading'])).toBe('reading')
     expect(paperRole(['--orbis-role=reading', '--mochi-role=reading'])).toBe('reading')
     for (const args of [
@@ -26,6 +27,10 @@ describe('trusted paper documents', () => {
     const root = '/app/out/renderer'
     const history = pathToFileURL(`${root}/history/index.html`).href
     expect(trustedPaperUrl(history, 'history', root)).toBe(true)
+    expect(trustedPaperUrl(pathToFileURL(`${root}/paper/index.html`).href, 'paper', root)).toBe(
+      true,
+    )
+    expect(trustedPaperUrl(history, 'paper', root)).toBe(false)
     expect(trustedPaperUrl(history, 'reading', root)).toBe(false)
     expect(trustedPaperUrl('file:///tmp/history/index.html', 'history', root)).toBe(false)
     expect(trustedPaperUrl('https://evil.test/history/index.html', 'history', root)).toBe(false)

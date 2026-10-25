@@ -74,8 +74,8 @@ export class PaperCloseController {
   private start(closeRequested: boolean, waiter?: (ok: boolean) => void): void {
     const token = randomUUID()
     const timer = setTimeout(() => {
-      this.host.warn('paper: before-close acknowledgement timed out; continuing shutdown')
-      this.settle(true)
+      this.host.warn('paper: before-close acknowledgement timed out; close cancelled')
+      this.settle(false)
     }, this.timeout)
     this.pending = { token, timer, closeRequested, waiters: waiter ? [waiter] : [] }
     try {

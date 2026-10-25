@@ -1,15 +1,30 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron'
+import { app, dialog, ipcMain, shell } from 'electron'
+import type { BrowserWindow, IpcMainEvent, IpcMainInvokeEvent, WebContents } from 'electron'
 import path from 'node:path'
 import { PAPER_CLOSE, PAPER_METHODS } from '../../shared/paper'
 import { createVaultService, dialogOptions, ExternalPermissions, externalUrl } from './service'
 import { PaperCloseController } from './close'
 import { PaperQuitController } from './quit'
+import { PaperSession } from './session'
 import { registeredPaperRole, rememberPaperRole, trustedPaperUrl } from './trust'
 
-/** Called only by the native window factory, never by an IPC channel. */
+const owners = new WeakMap<WebContents, BrowserWindow>()
+const hosts = new Set<WebContents>()
+let attachHost: ((win: BrowserWindow, wc: WebContents) => void) | undefined
+
+/** Authority is assigned by the native factory, not inferred from preferences. */
 export function registerPaperWindow(win: BrowserWindow, role: 'history' | 'reading'): void {
   rememberPaperRole(win.webContents, role)
+  owners.set(win.webContents, win)
+  hosts.add(win.webContents)
+  attachHost?.(win, win.webContents)
+}
+
+export function registerPaperView(owner: BrowserWindow, wc: WebContents): void {
+  rememberPaperRole(wc, 'paper')
+  owners.set(wc, owner)
+  hosts.add(wc)
+  attachHost?.(owner, wc)
 }
 
 let registered = false
@@ -21,29 +36,46 @@ export function registerPaperIpc(): void {
   const vault = createVaultService(path.join(app.getPath('userData'), 'paper'))
   const states = new Map<
     number,
-    { permissions: ExternalPermissions; close: PaperCloseController; generation: number }
+    {
+      permissions: ExternalPermissions
+      close: PaperCloseController
+      generation: number
+      document: object
+      wc: WebContents
+      win: BrowserWindow
+    }
   >()
   // Both dev and production main bundles live at out/main/index.js.
   const rendererRoot = path.join(__dirname, '../renderer')
   const devUrl = !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined
 
-  function attach(win: BrowserWindow): void {
-    const wc = win.webContents
+  const session = new PaperSession()
+  function attach(win: BrowserWindow, wc: WebContents): void {
     if (states.has(wc.id)) return
     const permissions = new ExternalPermissions()
     const close = new PaperCloseController({
       send: (token) => wc.send(PAPER_CLOSE.request, token),
       close: () => {
-        if (!win.isDestroyed()) win.close()
+        void session.drain().then(() => {
+          if (!win.isDestroyed()) win.close()
+        })
       },
       warn: (message) => console.warn(message),
     })
-    const state = { permissions, close, generation: 0 }
+    const state = { permissions, close, generation: 0, document: {}, wc, win }
     states.set(wc.id, state)
     win.on('close', (event) => {
       if (!close.closing()) event.preventDefault()
+      else if (registeredPaperRole(wc) === 'paper' && session.hasPending) {
+        event.preventDefault()
+        void session.drain().then(() => {
+          if (!win.isDestroyed()) win.close()
+        })
+      }
     })
     const clear = (): void => {
+      session.revoke(state.document)
+      state.document = {}
       permissions.clear()
       close.clear()
       state.generation += 1
@@ -55,27 +87,60 @@ export function registerPaperIpc(): void {
     wc.once('destroyed', () => {
       clear()
       states.delete(wc.id)
+      hosts.delete(wc)
     })
+    const isOwnerContents = wc === win.webContents
     win.once('closed', () => {
       clear()
       states.delete(wc.id)
+      hosts.delete(wc)
+      try {
+        if (!isOwnerContents && !wc.isDestroyed()) wc.close()
+      } catch {}
     })
   }
-  for (const win of BrowserWindow.getAllWindows()) attach(win)
-  app.on('browser-window-created', (_event, win) => attach(win))
+  attachHost = attach
+  for (const wc of hosts) {
+    const owner = owners.get(wc)
+    if (owner) attach(owner, wc)
+  }
 
   const quit = new PaperQuitController({
-    participants: () =>
-      BrowserWindow.getAllWindows().flatMap((win) => {
+    participants: () => {
+      const participants = [...states.values()].flatMap((state) => {
         try {
-          // Never enlist companion windows, stale documents, or unsubscribed
-          // paper windows in application-level preparation.
-          const { state } = trustedWindow(win)
-          return state.close.needsPreparation ? [state.close] : []
+          trustedContents(state.wc)
+          return state.close.needsPreparation ||
+            (registeredPaperRole(state.wc) === 'paper' && session.hasPending)
+            ? [
+                {
+                  prepareForQuit: async () => {
+                    const ok = await state.close.prepareForQuit()
+                    if (ok) await session.drain()
+                    return ok
+                  },
+                  allowQuit: () => state.close.allowQuit(),
+                  cancelPreparation: () => state.close.cancelPreparation(),
+                },
+              ]
+            : []
         } catch {
           return []
         }
-      }),
+      })
+      // A navigated/crashed document may no longer be trusted, but its accepted
+      // disk operations still belong to the vault and must finish before exit.
+      if (session.hasPending)
+        participants.push({
+          prepareForQuit: async () => {
+            await session.drain()
+            return true
+          },
+          allowQuit: () => {},
+          cancelPreparation: () => {},
+        })
+      return participants
+    },
     quit: () => app.quit(),
     warn: (message) => console.warn(message),
   })
@@ -83,90 +148,114 @@ export function registerPaperIpc(): void {
     if (!quit.beforeQuit()) event.preventDefault()
   })
 
-  function trustedWindow(win: BrowserWindow) {
-    const sender = win.webContents
-    if (win.isDestroyed() || sender.isDestroyed()) throw new Error('paper: destroyed window')
+  function trustedContents(sender: WebContents) {
+    const win = owners.get(sender)
+    if (!win || win.isDestroyed() || sender.isDestroyed())
+      throw new Error('paper: untrusted sender')
     const role = registeredPaperRole(sender)
     if (!role || !trustedPaperUrl(sender.mainFrame.url, role, rendererRoot, devUrl))
       throw new Error('paper: untrusted document')
-    attach(win)
-    return { win, state: states.get(sender.id)! }
+    attach(win, sender)
+    return { win, state: states.get(sender.id)!, role }
   }
 
   function trusted(event: IpcMainEvent | IpcMainInvokeEvent) {
     const sender = event.sender
-    const win = BrowserWindow.fromWebContents(sender)
-    if (!win || win.isDestroyed() || sender.isDestroyed() || event.senderFrame !== sender.mainFrame)
-      throw new Error('paper: untrusted sender/frame')
-    return trustedWindow(win)
+    if (event.senderFrame !== sender.mainFrame) throw new Error('paper: untrusted frame')
+    return trustedContents(sender)
   }
+  ipcMain.handle('paper:session:acquire', async (event) => {
+    const { state, role } = trusted(event)
+    if (role !== 'paper') throw new Error('paper: session requires paper role')
+    const document = state.document
+    await session.acquire(document)
+    try {
+      trusted(event)
+      if (state.document !== document) throw new Error('paper: document changed')
+    } catch (error) {
+      session.revoke(document)
+      throw error
+    }
+  })
   for (const [namespace, methods] of Object.entries(PAPER_METHODS)) {
     for (const method of methods) {
       ipcMain.handle(`paper:${namespace}:${method}`, async (event, ...args: unknown[]) => {
-        const { win, state } = trusted(event)
-        switch (namespace) {
-          case 'fs':
-            return vault.fs(method, args)
-          case 'size':
-            return vault.size(method, args)
-          case 'externalFs':
-            return state.permissions.call(method, args)
-          case 'window':
-            if (method === 'minimize') win.minimize()
-            else if (method === 'toggleMaximize') {
-              if (win.isMaximized()) win.unmaximize()
-              else win.maximize()
-            } else if (method === 'close') win.close()
-            return
-          case 'dialog': {
-            const options = dialogOptions(args[0])
-            const generation = state.generation
-            if (method === 'open') {
-              const selected = await dialog.showOpenDialog(win, {
+        const { win, state, role } = trusted(event)
+        if (namespace !== 'window' && role !== 'paper')
+          throw new Error('paper: session requires paper role')
+        if (namespace !== 'window') session.assert(state.document)
+        const document = state.document
+        const operation = async () => {
+          switch (namespace) {
+            case 'fs':
+              return vault.fs(method, args)
+            case 'size':
+              return vault.size(method, args)
+            case 'externalFs':
+              return state.permissions.call(method, args)
+            case 'window':
+              if (method === 'minimize') win.minimize()
+              else if (method === 'toggleMaximize') {
+                if (win.isMaximized()) win.unmaximize()
+                else win.maximize()
+              } else if (method === 'close') win.close()
+              return
+            case 'dialog': {
+              const options = dialogOptions(args[0])
+              const generation = state.generation
+              if (method === 'open') {
+                const selected = await dialog.showOpenDialog(win, {
+                  ...(options.title !== undefined ? { title: options.title } : {}),
+                  ...(options.defaultPath !== undefined
+                    ? { defaultPath: options.defaultPath }
+                    : {}),
+                  ...(options.filters !== undefined ? { filters: options.filters } : {}),
+                  properties: [
+                    options.directory ? 'openDirectory' : 'openFile',
+                    ...(options.multiple ? ['multiSelections' as const] : []),
+                  ],
+                })
+                trusted(event)
+                session.assert(document)
+                if (state.generation !== generation)
+                  throw new Error('paper: document changed while dialog was open')
+                if (selected.canceled) return null
+                for (const file of selected.filePaths) await state.permissions.grantRead(file)
+                if (state.generation !== generation) {
+                  state.permissions.clear()
+                  throw new Error('paper: document changed')
+                }
+                return selected.filePaths
+              }
+              const selected = await dialog.showSaveDialog(win, {
                 ...(options.title !== undefined ? { title: options.title } : {}),
                 ...(options.defaultPath !== undefined ? { defaultPath: options.defaultPath } : {}),
                 ...(options.filters !== undefined ? { filters: options.filters } : {}),
-                properties: [
-                  options.directory ? 'openDirectory' : 'openFile',
-                  ...(options.multiple ? ['multiSelections' as const] : []),
-                ],
+                properties: ['showOverwriteConfirmation', 'createDirectory'],
               })
               trusted(event)
+              session.assert(document)
               if (state.generation !== generation)
                 throw new Error('paper: document changed while dialog was open')
-              if (selected.canceled) return null
-              for (const file of selected.filePaths) await state.permissions.grantRead(file)
+              if (selected.canceled || !selected.filePath) return null
+              await state.permissions.grantWrite(selected.filePath)
               if (state.generation !== generation) {
                 state.permissions.clear()
                 throw new Error('paper: document changed')
               }
-              return selected.filePaths
+              return selected.filePath
             }
-            const selected = await dialog.showSaveDialog(win, {
-              ...(options.title !== undefined ? { title: options.title } : {}),
-              ...(options.defaultPath !== undefined ? { defaultPath: options.defaultPath } : {}),
-              ...(options.filters !== undefined ? { filters: options.filters } : {}),
-              properties: ['showOverwriteConfirmation', 'createDirectory'],
-            })
-            trusted(event)
-            if (state.generation !== generation)
-              throw new Error('paper: document changed while dialog was open')
-            if (selected.canceled || !selected.filePath) return null
-            await state.permissions.grantWrite(selected.filePath)
-            if (state.generation !== generation) {
-              state.permissions.clear()
-              throw new Error('paper: document changed')
-            }
-            return selected.filePath
           }
+          throw new Error('paper: unknown method')
         }
-        throw new Error('paper: unknown method')
+        return namespace === 'window' ? operation() : session.run(document, operation)
       })
     }
   }
   ipcMain.handle('paper:openExternal', async (event, url: unknown) => {
-    trusted(event)
-    await shell.openExternal(externalUrl(url))
+    const { state, role } = trusted(event)
+    if (role !== 'paper') throw new Error('paper: session requires paper role')
+    await session.run(state.document, () => shell.openExternal(externalUrl(url)))
   })
   // Preload uses send, not invoke, for the close handshake. Also accept invoke so
   // callers can await subscription installation before their first write.

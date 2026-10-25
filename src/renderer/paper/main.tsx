@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react'
 import { createPaperClosePreparation } from './close'
 import { flushBeforeClose } from '../../kernel/core/beforeClose'
 import { createRoot } from 'react-dom/client'
@@ -9,6 +9,7 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import {
   createKernelServices,
+  finishPendingRemovals,
   composeCapabilities,
   kernelApi,
   buildServices,
@@ -23,15 +24,32 @@ import {
   tauriSizePort,
 } from '../../kernel/ui'
 
-/** Build/boot integration entry only. Existing companion/history/reading routes are unchanged. */
+class PaperErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  override componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[paper] renderer failed; close will still flush storage', error, info)
+  }
+  override render() {
+    return this.state.failed
+      ? <div role="alert">Paper encountered an error. Close and reopen the reading window to recover. Saved books and notes are retained.</div>
+      : this.props.children
+  }
+}
+
+/** The sole Paper composition root, hosted in the reading window's native view. */
 async function main(root: HTMLElement): Promise<void> {
   if (!window.orbisPaper) {
     root.textContent =
-      'Paper requires an Orbis reading/history host. This entry validates the renderer build.'
+      'Paper requires the Orbis reading workspace host.'
     return
   }
+  // No store (including its migrations) may be constructed before main grants
+  // the document-bound lease. History/Retell/competing views cannot get it.
+  await window.orbisPaper.session.acquire()
   const { storage, notice } = await openAppStorage()
   const fs = libraryFs
+  await finishPendingRemovals(fs)
   let shelfUnread = false
   const initialBooks = await loadShelf(fs).then(
     (shelf) => shelf.books,
@@ -54,16 +72,18 @@ async function main(root: HTMLElement): Promise<void> {
     flushStore: async () => {
       if (storage && 'flush' in storage) await storage.flush()
     },
-    dispose: () => {
-      lifetime.abort()
-      composition.dispose()
-    },
+    // A successful preparation can still be followed by another window
+    // cancelling app.quit. Tear down only when this document actually leaves.
+    dispose: () => {},
   })
-  // This also covers the gap before React has installed its own close hook.
-  window.orbisPaper.window.onBeforeClose(prepare)
-  window.addEventListener('pagehide', () => lifetime.abort(), { once: true })
+  closePreparation = prepare
+  window.addEventListener('pagehide', () => {
+    lifetime.abort()
+    composition.dispose()
+  }, { once: true })
   createRoot(root).render(
     <StrictMode>
+      <PaperErrorBoundary>
       <App
         services={services}
         fs={fs}
@@ -72,13 +92,24 @@ async function main(root: HTMLElement): Promise<void> {
         composition={composition}
         beforeWindowClose={prepare}
       />
+      </PaperErrorBoundary>
     </StrictMode>,
   )
 }
 
+let closePreparation: (() => Promise<unknown>) | undefined
 const root = document.getElementById('root')
-if (root)
-  void main(root).catch((error: unknown) => {
+if (root) {
+  document.documentElement.dataset.orbisPaperEmbedded = 'true'
+  const startup = main(root)
+  // Subscribe during startup as well: closing while the shelf is opening must
+  // not destroy its writer before the pending boot has handed over to drain.
+  window.orbisPaper?.window.onBeforeClose(async () => {
+    await startup.catch(() => {})
+    await closePreparation?.()
+  })
+  void startup.catch((error: unknown) => {
     root.textContent = `Paper could not start: ${String(error)}`
     console.error('[paper] boot failed', error)
   })
+}

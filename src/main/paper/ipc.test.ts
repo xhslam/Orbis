@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { rememberPaperRole } from './trust'
+import type { BrowserWindow, WebContents } from 'electron'
 
 const mock = vi.hoisted(() => {
   const appEvents = new Map<string, (...args: unknown[]) => unknown>()
@@ -7,18 +8,20 @@ const mock = vi.hoisted(() => {
   const events = new Map<string, (...args: unknown[]) => unknown>()
   const windowEvents = new Map<string, (...args: unknown[]) => unknown>()
   const wcEvents = new Map<string, (...args: unknown[]) => unknown>()
-  const mainFrame = { url: 'http://localhost:5173/history/index.html' }
+  const mainFrame = { url: 'http://localhost:5173/paper/index.html' }
   const wc = {
     id: 71,
     mainFrame,
     isDestroyed: () => false,
-    getLastWebPreferences: () => ({ additionalArguments: ['--orbis-role=history'] }),
+    // Real Electron does not round-trip additionalArguments.
+    getLastWebPreferences: () => ({}),
+    close: vi.fn(),
     send: vi.fn(),
     on: (name: string, cb: (...args: unknown[]) => unknown) => wcEvents.set(name, cb),
     once: (name: string, cb: (...args: unknown[]) => unknown) => wcEvents.set(name, cb),
   }
   const win = {
-    webContents: wc,
+    webContents: { id: 70 },
     isDestroyed: () => false,
     close: vi.fn(),
     minimize: vi.fn(),
@@ -38,7 +41,7 @@ const mock = vi.hoisted(() => {
     wc,
     win,
     mainFrame,
-    fromWebContents: vi.fn((sender: unknown) => (sender === wc ? win : null)),
+    fromWebContents: vi.fn(() => null),
     vaultFs: vi.fn(),
     vaultSize: vi.fn(),
     openExternal: vi.fn(),
@@ -82,9 +85,9 @@ vi.mock('./service', async (importOriginal) => {
 
 beforeAll(async () => {
   process.env['ELECTRON_RENDERER_URL'] = 'http://localhost:5173'
-  const { registerPaperIpc } = await import('./index')
-  rememberPaperRole(mock.wc, 'history')
+  const { registerPaperIpc, registerPaperView } = await import('./index')
   registerPaperIpc()
+  registerPaperView(mock.win as unknown as BrowserWindow, mock.wc as unknown as WebContents)
 })
 const event = () => ({ sender: mock.wc, senderFrame: mock.mainFrame })
 const invoke = (channel: string, ...args: unknown[]) =>
@@ -108,6 +111,9 @@ describe('paper IPC registration and sender enforcement', () => {
     for (const [namespace, methods] of Object.entries(PAPER_METHODS))
       for (const method of methods)
         expect(mock.handlers.has(`paper:${namespace}:${method}`)).toBe(true)
+    await expect(invoke('paper:fs:exists', 'books')).rejects.toThrow('session')
+    await invoke('paper:session:acquire')
+    await invoke('paper:session:acquire')
     await invoke('paper:fs:exists', 'books')
     expect(mock.vaultFs).toHaveBeenCalledWith('exists', ['books'])
     await invoke('paper:openExternal', 'https://example.com')
@@ -123,11 +129,20 @@ describe('paper IPC registration and sender enforcement', () => {
     ).rejects.toThrow('sender')
     rememberPaperRole(mock.wc, 'reading')
     await expect(invoke('paper:fs:exists', 'x')).rejects.toThrow('document')
-    rememberPaperRole(mock.wc, 'history')
+    rememberPaperRole(mock.wc, 'paper')
     const previous = mock.mainFrame.url
     mock.mainFrame.url = 'https://evil.test/history/index.html'
     await expect(invoke('paper:fs:exists', 'x')).rejects.toThrow('document')
     mock.mainFrame.url = previous
+  })
+  it('does not grant a navigation shell a session even with a trusted URL', async () => {
+    mock.mainFrame.url = 'http://localhost:5173/history/index.html'
+    rememberPaperRole(mock.wc, 'history')
+    await expect(invoke('paper:session:acquire')).rejects.toThrow('paper role')
+    await expect(invoke('paper:fs:exists', 'books')).rejects.toThrow('paper role')
+    await expect(invoke('paper:openExternal', 'https://example.com')).rejects.toThrow('paper role')
+    mock.mainFrame.url = 'http://localhost:5173/paper/index.html'
+    rememberPaperRole(mock.wc, 'paper')
   })
   it('only grants native dialog selections, never the renderer defaultPath', async () => {
     await invoke('paper:dialog:open', { defaultPath: '/renderer-request' })
@@ -150,6 +165,7 @@ describe('paper IPC registration and sender enforcement', () => {
     )
     expect(mock.win.close).not.toHaveBeenCalled()
     await invoke('paper:close:ready', token, true)
+    for (let i = 0; i < 20; i++) await Promise.resolve()
     expect(mock.win.close).toHaveBeenCalledOnce()
     mock.wcEvents.get('did-start-navigation')!({}, 'https://evil.test', false, true)
     expect(mock.clear).toHaveBeenCalled()
@@ -165,7 +181,7 @@ describe('paper IPC registration and sender enforcement', () => {
     await invoke('paper:close:unsubscribe')
     expect(mock.quit).not.toHaveBeenCalled()
     await invoke('paper:close:ready', token, true)
-    for (let i = 0; i < 8; i++) await Promise.resolve()
+    for (let i = 0; i < 20; i++) await Promise.resolve()
     expect(mock.quit).toHaveBeenCalledTimes(1)
     const resumedPrevent = vi.fn()
     mock.appEvents.get('before-quit')!({ preventDefault: resumedPrevent })
@@ -173,5 +189,101 @@ describe('paper IPC registration and sender enforcement', () => {
     const closePrevent = vi.fn()
     mock.windowEvents.get('close')!({ preventDefault: closePrevent })
     expect(closePrevent).not.toHaveBeenCalled()
+  })
+  it('waits accepted IO after navigation before granting a replacement view, then closes its WC explicitly', async () => {
+    const { registerPaperView } = await import('./index')
+    const wcEvents = new Map<string, Function>()
+    const ownerEvents = new Map<string, Function>()
+    const frame = { url: 'http://localhost:5173/paper/index.html' }
+    const wc = {
+      ...mock.wc,
+      id: 72,
+      mainFrame: frame,
+      close: vi.fn(),
+      on: (name: string, cb: Function) => wcEvents.set(name, cb),
+      once: (name: string, cb: Function) => wcEvents.set(name, cb),
+    }
+    const owner = {
+      ...mock.win,
+      on: (name: string, cb: Function) => ownerEvents.set(name, cb),
+      once: (name: string, cb: Function) => ownerEvents.set(name, cb),
+    }
+    registerPaperView(owner as unknown as BrowserWindow, wc as unknown as WebContents)
+    await invoke('paper:session:acquire')
+    const replacementEvent = { sender: wc, senderFrame: frame }
+    const acquire = mock.handlers.get('paper:session:acquire')!
+    await expect(acquire(replacementEvent)).rejects.toThrow('already acquired')
+    let finish!: () => void
+    mock.vaultFs.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    const accepted = invoke('paper:fs:writeFile', 'books/a', new Uint8Array())
+    await Promise.resolve()
+    mock.wcEvents.get('did-start-navigation')!({}, frame.url, false, true)
+    await expect(invoke('paper:fs:exists', 'books')).rejects.toThrow('session required')
+    const granted = vi.fn()
+    const pendingGrant = Promise.resolve(acquire(replacementEvent)).then(granted)
+    await Promise.resolve()
+    expect(granted).not.toHaveBeenCalled()
+    finish()
+    await accepted
+    await pendingGrant
+    expect(granted).toHaveBeenCalledOnce()
+    ownerEvents.get('closed')!()
+    expect(wc.close).toHaveBeenCalledOnce()
+    wc.isDestroyed = () => true
+    await expect(acquire(replacementEvent)).rejects.toThrow('sender')
+  })
+  it('does not close an owner after the view ACK until accepted disk IO drains', async () => {
+    mock.win.close.mockClear()
+    await invoke('paper:session:acquire')
+    await invoke('paper:close:subscribe')
+    let finish!: () => void
+    mock.vaultFs.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    const write = invoke('paper:fs:writeFile', 'books/a', new Uint8Array())
+    await Promise.resolve()
+    const preventDefault = vi.fn()
+    mock.windowEvents.get('close')!({ preventDefault })
+    expect(preventDefault).toHaveBeenCalledOnce()
+    const token = mock.wc.send.mock.calls.at(-1)![1]
+    await invoke('paper:close:ready', token, true)
+    for (let i = 0; i < 8; i++) await Promise.resolve()
+    expect(mock.win.close).not.toHaveBeenCalled()
+    finish()
+    await write
+    for (let i = 0; i < 8; i++) await Promise.resolve()
+    expect(mock.win.close).toHaveBeenCalledOnce()
+    mock.wcEvents.get('did-start-navigation')!({}, mock.mainFrame.url, false, true)
+  })
+  it('app quit waits revoked-document IO even when no renderer is subscribed', async () => {
+    mock.quit.mockClear()
+    await invoke('paper:session:acquire')
+    let finish!: () => void
+    mock.vaultFs.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    const write = invoke('paper:fs:writeFile', 'books/a', new Uint8Array())
+    await Promise.resolve()
+    mock.wcEvents.get('did-start-navigation')!({}, mock.mainFrame.url, false, true)
+    const preventDefault = vi.fn()
+    mock.appEvents.get('before-quit')!({ preventDefault })
+    expect(preventDefault).toHaveBeenCalledOnce()
+    for (let i = 0; i < 8; i++) await Promise.resolve()
+    expect(mock.quit).not.toHaveBeenCalled()
+    finish()
+    await write
+    for (let i = 0; i < 20; i++) await Promise.resolve()
+    expect(mock.quit).toHaveBeenCalledOnce()
   })
 })

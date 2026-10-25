@@ -3,11 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Orbis — Reading & Retelling</title>
+    <title>Orbis — Reading Workspace</title>
     <link rel="stylesheet" href="../design/tokens.css" />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
+    <nav id="workspace-bar" aria-label="Reading mode">
+      <span class="workspace-label">READING</span>
+      <button type="button" data-reading-mode="retell" aria-pressed="true">Retell · 复述训练</button>
+      <button type="button" data-reading-mode="paper" aria-pressed="false">Paper · 书库精读</button>
+    </nav>
     <div id="reading-app"></div>
     <script type="module" src="./main.ts"></script>
   </body>

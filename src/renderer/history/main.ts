@@ -51,7 +51,7 @@ import { type ShelfHandlers } from './sheet/row'
 import { installLogStamp } from '@shared/log'
 import { SAYS } from './main-says'
 import type { OrbisReadingApi } from '@shared/reading/article'
-import { createReadingApp, type ReadingApp } from '../reading/app'
+import { isReadingMode } from '../../shared/reading-workspace'
 /*
   The settings panes' own copy, aliased because this file already has a `SAYS`.
 
@@ -991,7 +991,14 @@ function openCharacter(): void {
  * conversations now have the whole window. One tab strip, one subject.
  */
 let place: Place = 'cast'
-let readingApp: ReadingApp | null = null
+// All reading engines live in the singleton workspace, never in history.
+pageReadingEl.addEventListener('click', (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLElement>('[data-open-reading-mode]')
+  const mode = button?.dataset.openReadingMode
+  if (isReadingMode(mode)) void window.orbisWorkspace?.open(mode).catch((error: unknown) => {
+    console.error('[history] reading workspace could not open', error)
+  })
+})
 
 function showPlace(next: Place): void {
   place = next
@@ -1110,19 +1117,7 @@ function showPlace(next: Place): void {
   // both come from disk and from another window's writes — so a cached copy is
   // stale the first time it matters.
   if (place === 'machine' || place === 'permits') void loadMachine()
-  if (place === 'reading') {
-    if (readingApp === null) {
-      const readingRoot = pageReadingEl.querySelector<HTMLElement>('#reading-app')
-      if (readingRoot) {
-        readingApp = createReadingApp(readingRoot)
-        void readingApp.mount()
-      }
-    } else {
-      void readingApp.refresh()
-    }
-  } else {
-    readingApp?.cleanup()
-  }
+
 }
 
 /**
@@ -1305,7 +1300,6 @@ function updateI18nSurfaces(): void {
   } else if (place === 'permits') {
     renderPermits()
   }
-  if (readingApp !== null) void readingApp.refresh()
 }
 
 /* ---- doing things -------------------------------------------------------- */

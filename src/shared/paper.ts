@@ -11,6 +11,8 @@ export interface PaperDialogOptions {
 
 /** Only available to the trusted history/reading top-level document. */
 export interface OrbisPaperApi {
+  /** Acquire before opening storage or constructing KernelServices. Only the dedicated Paper view may own it. */
+  session: { acquire(): Promise<void> }
   fs: Required<IndexFs>
   size: SizePort
   dialog: {
