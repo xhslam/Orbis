@@ -873,6 +873,7 @@ export function createMarkStore({
 
   const rekey: MarkStore['rekey'] = async (from, to) => {
     if (!fs || from === to) return
+    if (!(await fs.exists(folderOf(to))) && !(await fs.exists(folderOf(from)))) return
     /* TWO PLACES, because the library may have got here first.
      *
      * `rekeyBook` renames the whole folder, `marks.json` included — so by

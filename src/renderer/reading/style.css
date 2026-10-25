@@ -1391,3 +1391,18 @@
   color: #7e22ce;
   animation: pulse-badge 1.5s infinite;
 }
+
+/* The native Paper view starts immediately below this fixed-height owner bar.
+   These styles never enter the separate Paper document. */
+html, body { height: 100%; margin: 0; overflow: hidden; }
+#workspace-bar {
+  box-sizing: border-box; height: var(--workspace-bar-height, 52px);
+  display: flex; gap: 8px; align-items: center; padding: 0 18px;
+  border-bottom: 1px solid var(--rule, #dedbd5); background: var(--paper, #f6f4ef);
+  color: var(--ink, #242424); font: 13px var(--sans, sans-serif);
+}
+#workspace-bar .workspace-label { font-size: 10px; letter-spacing: .14em; margin-right: 12px; opacity: .65; }
+#workspace-bar button { border: 1px solid transparent; padding: 7px 13px; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; font: inherit; }
+#workspace-bar button[aria-pressed='true'] { border-color: var(--rule, #d3d0c8); background: var(--ink, #282828); color: var(--paper, #f6f4ef); }
+#reading-app { height: calc(100% - var(--workspace-bar-height, 52px)); }
+#reading-app[hidden] { display: none !important; }

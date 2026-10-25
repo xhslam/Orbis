@@ -37,10 +37,10 @@ export class PaperQuitController {
   private async prepare(participants: QuitParticipant[]): Promise<void> {
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
-      const bounded = new Promise<boolean>((resolve) => {
+      const bounded = new Promise<boolean>((_resolve, reject) => {
         timer = setTimeout(() => {
-          this.host.warn('paper: application quit preparation timed out; continuing shutdown')
-          resolve(true)
+          this.host.warn('paper: application quit preparation timed out; quit cancelled')
+          reject(new Error('paper: quit timed out'))
         }, this.timeout)
       })
       const prepared = Promise.all(

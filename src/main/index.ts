@@ -199,6 +199,7 @@ import { createCompanionWindow, showHistoryWindow, showReadingWindow } from './w
 import { createReadingStore } from './reading/store'
 import { registerReadingIpc } from './reading/ipc'
 import { registerPaperIpc } from './paper/ipc'
+import { registerReadingWorkspaceIpc } from './reading-workspace'
 import { checkCodexNow, codexForWindow } from './codex/ready'
 import { codexPathNow } from './codex/ready'
 import { carryGrantsForward } from './store/grants'
@@ -4335,6 +4336,7 @@ const startup = app.whenReady().then(
     */
     installMenu()
     registerPaperIpc()
+    registerReadingWorkspaceIpc()
 
     /*
       THE OTHER HALF OF THE RECONNECT, and the one no timer can do for itself.

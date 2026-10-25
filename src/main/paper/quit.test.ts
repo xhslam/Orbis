@@ -61,15 +61,15 @@ describe('application quit coordination', () => {
     await flush()
     expect(host.quit).toHaveBeenCalledTimes(1)
   })
-  it('bounds missing replies with a logged timeout', async () => {
+  it('cancels missing replies with a logged timeout without destroying participants', async () => {
     vi.useFakeTimers()
     const { first, host, controller } = fixture()
     controller.beforeQuit()
     first.ack(true)
     await vi.advanceTimersByTimeAsync(50)
-    expect(host.quit).toHaveBeenCalledTimes(1)
+    expect(host.quit).not.toHaveBeenCalled()
     expect(host.warn).toHaveBeenCalledWith(expect.stringContaining('timed out'))
-    expect(controller.beforeQuit()).toBe(true)
+    expect(controller.beforeQuit()).toBe(false)
   })
   it('ordinary window close never calls app.quit', async () => {
     const { first, host } = fixture()

@@ -2,6 +2,7 @@ import { type Answers } from '@shared/answers'
 import { type Link } from '@shared/links'
 import { contextBridge, ipcRenderer } from 'electron'
 import { createPaperBridge } from './paper'
+import { createReadingWorkspaceBridge } from './reading-workspace'
 import {
   isCompanionChannel,
   isReadingChannel,
@@ -105,7 +106,7 @@ const role =
  * left behind by deleting the window that made the name legitimate. A role in
  * this set must have a branch; there are two of each now.
  */
-const ROLES = new Set(['companion', 'history', 'reading'])
+const ROLES = new Set(['companion', 'history', 'reading', 'paper'])
 
 const reading: OrbisReadingApi = {
   async listArticles() {
@@ -355,10 +356,15 @@ const settings: MochiSettingsApi = {
 }
 
 // The Paper bridge never belongs to the companion or to an embedded book frame.
-if ((role === 'reading' || role === 'history') && process.isMainFrame) {
+if ((role === 'reading' || role === 'history' || role === 'paper') && process.isMainFrame) {
   contextBridge.exposeInMainWorld('orbisPaper', createPaperBridge(ipcRenderer))
 }
 
+if ((role === 'reading' || role === 'history') && process.isMainFrame) {
+  contextBridge.exposeInMainWorld('orbisWorkspace', createReadingWorkspaceBridge(ipcRenderer))
+}
+
+// The Paper view has only its host bridge, never voice/settings permissions.
 // One of the three, never more than one. The conversations window has no
 // business minting a key, the companion has no business reading a transcript,
 // and neither has any business rewriting who she is -- exposing every API to
@@ -368,6 +374,8 @@ if (!ROLES.has(role)) {
   // undefined, which reads as a bug in the page rather than a refusal. An empty
   // string is the ABSENT case, and it lands here rather than on the companion.
   console.error(`[preload] refusing to expose any API: unknown role "${role}"`)
+} else if (role === 'paper') {
+  // Its API was installed above, only for the main frame.
 } else if (role === 'reading') {
   contextBridge.exposeInMainWorld('orbisReading', reading)
 } else if (role === 'history') {

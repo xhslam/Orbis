@@ -3,25 +3,27 @@ import { fileURLToPath } from 'node:url'
 
 // Native preferences do not preserve additionalArguments in every Electron version.
 // Only the main-process window factory can grant this role; renderers cannot.
-const roles = new WeakMap<object, 'history' | 'reading'>()
-export function rememberPaperRole(sender: object, role: 'history' | 'reading'): void {
+const roles = new WeakMap<object, 'history' | 'reading' | 'paper'>()
+export function rememberPaperRole(sender: object, role: 'history' | 'reading' | 'paper'): void {
   roles.set(sender, role)
 }
-export function registeredPaperRole(sender: object): 'history' | 'reading' | null {
+export function registeredPaperRole(sender: object): 'history' | 'reading' | 'paper' | null {
   return roles.get(sender) ?? null
 }
 
-export function paperRole(arguments_: readonly string[] | undefined): 'history' | 'reading' | null {
+export function paperRole(
+  arguments_: readonly string[] | undefined,
+): 'history' | 'reading' | 'paper' | null {
   const roles = (arguments_ ?? []).filter((arg) => /^--(?:orbis|mochi)-role=/.test(arg))
   if (roles.length === 0) return null
   const role = roles[0]!.split('=')[1]
   if (!roles.every((arg) => arg.split('=')[1] === role)) return null
-  return role === 'history' || role === 'reading' ? role : null
+  return role === 'history' || role === 'reading' || role === 'paper' ? role : null
 }
 
 export function trustedPaperUrl(
   url: string,
-  role: 'history' | 'reading',
+  role: 'history' | 'reading' | 'paper',
   rendererRoot: string,
   devUrl?: string,
 ): boolean {

@@ -46,7 +46,7 @@ describe('native window close handshake', () => {
     expect(host.send).toHaveBeenCalledTimes(2)
     controller.clear()
   })
-  it('times out once, logs the timeout and allows bounded shutdown', () => {
+  it('times out once, logs and cancels shutdown so flush cannot be bypassed', () => {
     vi.useFakeTimers()
     const { host, controller } = fixture()
     controller.subscribe()
@@ -55,9 +55,10 @@ describe('native window close handshake', () => {
     vi.advanceTimersByTime(49)
     expect(host.close).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
-    expect(host.close).toHaveBeenCalledTimes(1)
+    expect(host.close).not.toHaveBeenCalled()
     expect(host.warn).toHaveBeenCalledWith(expect.stringContaining('timed out'))
-    expect(controller.closing()).toBe(true)
+    expect(controller.closing()).toBe(false)
+    controller.clear()
   })
   it('cleans pending tokens on navigation/destruction but preserves pending work on unsubscribe', () => {
     vi.useFakeTimers()

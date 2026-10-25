@@ -6,6 +6,8 @@ import { containToWorkArea, KEEP_ON_SCREEN } from './drag'
 import { letDevToolsInspect } from './inspect'
 import { registerPaperWindow } from './paper/ipc'
 import { shippedPath } from './shipped'
+import { ReadingWorkspace } from './paper/workspace'
+import type { ReadingMode } from '../shared/reading-workspace'
 
 /**
  * How long after the last move or resize the window's place is written.
@@ -157,7 +159,7 @@ function herWindowOrigin(stored: Place | null): { x: number; y: number } {
  * open in exactly the direction it argues against. It refuses an absent role
  * now, and this is what keeps both windows working.
  */
-function bridgeFor(role: 'companion' | 'history' | 'reading'): Electron.WebPreferences {
+function bridgeFor(role: 'companion' | 'history' | 'reading' | 'paper'): Electron.WebPreferences {
   return {
     preload: join(__dirname, '../preload/index.js'),
     contextIsolation: true,
@@ -798,8 +800,18 @@ export function showHistoryWindow(): BrowserWindow {
 
 let readingWindow: BrowserWindow | null = null
 
-export function showReadingWindow(): BrowserWindow {
+let readingWorkspace: ReadingWorkspace | null = null
+
+export function getReadingMode(): ReadingMode {
+  return readingWorkspace?.getMode() ?? 'retell'
+}
+export function setReadingMode(mode: ReadingMode): void {
+  readingWorkspace?.setMode(mode)
+}
+
+export function showReadingWindow(mode: ReadingMode = 'retell'): BrowserWindow {
   if (readingWindow !== null && !readingWindow.isDestroyed()) {
+    readingWorkspace?.setMode(mode)
     if (readingWindow.isMinimized()) readingWindow.restore()
     bringForward(readingWindow)
     return readingWindow
@@ -824,8 +836,11 @@ export function showReadingWindow(): BrowserWindow {
 
   registerPaperWindow(window, 'reading')
   readingWindow = window
+  readingWorkspace = new ReadingWorkspace(window, bridgeFor('paper'))
+  readingWorkspace.setMode(mode)
   window.on('closed', () => {
     readingWindow = null
+    readingWorkspace = null
   })
 
   letDevToolsInspect(window.webContents)

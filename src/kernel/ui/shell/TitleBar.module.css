@@ -303,3 +303,7 @@
   accent-color: var(--accent);
   cursor: pointer;
 }
+
+/* Orbis supplies a native owner window and a separate workspace mode bar.
+   Keep the book controls, but do not paint a second set of OS controls. */
+:global(html[data-orbis-paper-embedded='true']) .sysZone { display: none; }

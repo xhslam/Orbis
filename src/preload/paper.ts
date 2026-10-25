@@ -32,6 +32,7 @@ export function createPaperBridge(ipc: PaperTransport): OrbisPaperApi {
     )
   })
   return {
+    session: { acquire: () => call('paper:session:acquire') },
     fs: {
       readFile: (path) => call('paper:fs:readFile', path),
       writeFile: (path, bytes) => call('paper:fs:writeFile', path, bytes),
