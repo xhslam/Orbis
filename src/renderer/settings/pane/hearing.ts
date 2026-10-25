@@ -49,6 +49,7 @@ import { type Pane, type Field } from '../pane'
 import { forPronoun } from '@shared/pronoun'
 import { EAGERNESS_LABELS, SAYS } from '../panes-says'
 import { field, options } from '../pane'
+import { getLanguage } from '../../i18n'
 /**
  * The one setting this group holds, named once. See `Field`.
  *
@@ -143,9 +144,12 @@ export const HEARING: Pane = {
         // Refused HERE as well as in main, so the message names the limit
         // before a write is attempted. Nothing on the pill moves, so the
         // control never shows a choice that was not saved.
+        const isZh = getLanguage() === 'zh'
         if (!on && accepted.size >= view.hearing.most) {
           handlers.say(
-            `Choose at most ${String(view.hearing.most)}${forPronoun(SAYS.tooManyLanguages, view.pronoun)}`,
+            isZh
+              ? `最多选择 ${String(view.hearing.most)} 种倾听语言`
+              : `Choose at most ${String(view.hearing.most)}${forPronoun(SAYS.tooManyLanguages, view.pronoun)}`,
             true,
           )
           return
@@ -193,9 +197,12 @@ export const HEARING: Pane = {
       "nobody has chosen one". This one was the exception, and a number with no
       noun is the one kind of apparatus text a reader has to guess at.
     */
+    const isZh = getLanguage() === 'zh'
     const parts: Node[] = [
       field(LANGUAGES, view, languages, {
-        hint: `${String(chosen.size)} chosen · ${String(view.hearing.most)} at most`,
+        hint: isZh
+          ? `已选择 ${String(chosen.size)} 种 · 最多 ${String(view.hearing.most)} 种`
+          : `${String(chosen.size)} chosen · ${String(view.hearing.most)} at most`,
         note: forPronoun(chosen.size === 0 ? SAYS.noLanguages : SAYS.someLanguages, view.pronoun),
       }),
     ]
@@ -210,7 +217,13 @@ export const HEARING: Pane = {
     */
     if (chosen.size >= view.hearing.most) {
       parts.push(
-        element('p', 'note', `${String(view.hearing.most)} is the limit. Drop one to add another.`),
+        element(
+          'p',
+          'note',
+          isZh
+            ? `最多选择 ${String(view.hearing.most)} 种语言。请先取消一种再选择其他语言。`
+            : `${String(view.hearing.most)} is the limit. Drop one to add another.`,
+        ),
       )
     }
 

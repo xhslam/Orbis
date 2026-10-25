@@ -131,6 +131,7 @@ export function castDangerous(
   pronoun: Pronoun,
   handlers: ShelfHandlers,
 ): HTMLElement {
+  const isZh = getLanguage() === 'zh'
   const row = element('div', 'row')
   const guarded: HTMLButtonElement[] = []
   const once = (act: () => void): void => {
@@ -162,7 +163,7 @@ export function castDangerous(
       sent two deletions, and the second answered "there is no character called
       …" over a deletion that had just worked.
     */
-    const remove = element('button', 'btn bad', `Delete ${worn.name}`)
+    const remove = element('button', 'btn bad', isZh ? `删除 ${worn.name}` : `Delete ${worn.name}`)
     remove.type = 'button'
     remove.addEventListener('click', () => {
       once(() => {
@@ -175,6 +176,12 @@ export function castDangerous(
 
   return anchor(
     herDangerous(worn),
-    section('This character', 'a character is a folder · deleting one takes its memory', row),
+    section(
+      'This character',
+      isZh
+        ? '角色即文件夹 · 删除角色将一并删除其记忆'
+        : 'a character is a folder · deleting one takes its memory',
+      row,
+    ),
   )
 }

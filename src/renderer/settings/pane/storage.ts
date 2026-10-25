@@ -41,6 +41,7 @@ import { anchor, field, type Pane, type Field, type PaneHandlers } from '../pane
 import { type Revealable, type SettingsView } from '@shared/ipc'
 import { forPronoun, label as paneLabel } from '@shared/pronoun'
 import { SAYS } from '../panes-says'
+import { getLanguage } from '../../i18n'
 
 /**
  * What this group holds, named once. See `Field`.
@@ -73,8 +74,10 @@ const FIELDS: Readonly<Record<'onDisk' | 'everything', Field>> = {
 function folder(kind: Revealable, path: string, handlers: PaneHandlers): HTMLElement {
   const row = anchor(folderField(kind), element('div', 'folder'))
   const left = element('div')
-  left.append(element('div', undefined, kind), element('code', undefined, path))
-  const open = element('button', 'btn', 'Show')
+  const isZh = getLanguage() === 'zh'
+  const kindName = isZh ? (kind === 'personas' ? '角色设定目录' : '自定义形象目录') : kind
+  left.append(element('div', undefined, kindName), element('code', undefined, path))
+  const open = element('button', 'btn', isZh ? '打开' : 'Show')
   open.type = 'button'
   // A KIND, never the path beside it. The string on screen is for reading; a
   // renderer that could hand main an arbitrary path to open would be a file
@@ -103,15 +106,21 @@ function everything(pronoun: SettingsView['pronoun'], handlers: PaneHandlers): H
     scrolls to it could be renamed apart — the drift the declaration exists to
     stop, on the one row in this window that cannot be undone.
   */
+  const isZh = getLanguage() === 'zh'
+  const everythingTitle = isZh
+    ? '所有角色的全部对话记录'
+    : paneLabel(FIELDS.everything.label, pronoun)
   left.append(
-    element('div', undefined, paneLabel(FIELDS.everything.label, pronoun)),
+    element('div', undefined, everythingTitle),
     element(
       'code',
       undefined,
-      'Characters, voices and looks are untouched. This cannot be undone.',
+      isZh
+        ? '角色设定、音色与外观均不受影响。此操作无法撤销。'
+        : 'Characters, voices and looks are untouched. This cannot be undone.',
     ),
   )
-  const go = element('button', 'btn bad', 'Delete…')
+  const go = element('button', 'btn bad', isZh ? '删除…' : 'Delete…')
   go.type = 'button'
   // It only ASKS. The confirmation is a separate surface, and the deletion
   // happens there or not at all.

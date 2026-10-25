@@ -447,3 +447,57 @@ describe('resting and hiding', () => {
     expect(shown.indexOf('Let her rest')).toBeLessThan(shown.indexOf('Main Window'))
   })
 })
+
+describe('Chinese localization for the menu', () => {
+  const BASE_ZH = {
+    personas: [
+      { id: 'nia', name: 'Nia' },
+      { id: 'mira', name: 'Mira' },
+    ],
+    wornId: 'nia',
+    pronoun: 'it' as const,
+    bubble: { available: ['above', 'below', 'left', 'right'], asked: 'auto', using: 'above' },
+    resting: { asleep: false, hidden: false },
+    listening: false,
+    keys: KEYS,
+    language: 'zh' as const,
+  }
+
+  it('renders Chinese labels for the Nia screenshot scenario (pronoun: it)', () => {
+    const template = trayMenuTemplate(BASE_ZH, HANDLERS, 'Orbis')
+    const itemLabels = template.map((item) => item.label)
+
+    expect(itemLabels).toContain('Orbis — Nia')
+    expect(itemLabels).toContain('让它休眠')
+    expect(itemLabels).toContain('隐藏它')
+    expect(itemLabels).toContain('主窗口')
+    expect(itemLabels).toContain('阅读与复述…')
+    expect(itemLabels).toContain('佩戴角色')
+    expect(itemLabels).toContain('对话气泡')
+    expect(itemLabels).toContain('退出 Orbis')
+
+    const bubbleItem = template.find((item) => item.label === '对话气泡')
+    const submenuLabels = Array.isArray(bubbleItem?.submenu)
+      ? bubbleItem.submenu.map((sub) => sub.label)
+      : []
+    expect(submenuLabels).toContain('自动适应（有空位处）')
+    expect(submenuLabels).toContain('在它上方')
+    expect(submenuLabels).toContain('在它下方')
+    expect(submenuLabels).toContain('在它左侧')
+    expect(submenuLabels).toContain('在它右侧')
+  })
+
+  it('renders Chinese pronouns correctly for she and he', () => {
+    const sheTemplate = trayMenuTemplate({ ...BASE_ZH, pronoun: 'she' }, HANDLERS, 'Orbis')
+    expect(sheTemplate.map((i) => i.label)).toContain('让她休眠')
+    expect(sheTemplate.map((i) => i.label)).toContain('隐藏她')
+
+    const heTemplate = trayMenuTemplate(
+      { ...BASE_ZH, pronoun: 'he', resting: { asleep: true, hidden: true } },
+      HANDLERS,
+      'Orbis',
+    )
+    expect(heTemplate.map((i) => i.label)).toContain('唤醒他')
+    expect(heTemplate.map((i) => i.label)).toContain('显示他')
+  })
+})

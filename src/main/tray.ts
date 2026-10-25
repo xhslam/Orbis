@@ -27,7 +27,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { Menu, Tray, app, nativeImage } from 'electron'
 import type { MenuItemConstructorOptions } from 'electron'
-import { SIDE_NAMES } from '@shared/persona'
+import { SIDE_NAMES, SIDE_NAMES_ZH } from '@shared/persona'
 import { forPronoun, type ByPronoun, type Pronoun } from '@shared/pronoun'
 import { shippedPath } from './shipped'
 
@@ -69,6 +69,8 @@ export interface TrayModel {
   readonly listening: boolean
   /** The keys, as claimed. A binding another application took is not shown. */
   readonly keys: { readonly rest: string | null; readonly hide: string | null }
+  /** UI display language (English / 简体中文). */
+  readonly language?: 'en' | 'zh'
 }
 
 export interface TrayHandlers {
@@ -87,6 +89,7 @@ export interface TrayHandlers {
   readonly onRest: () => void
   readonly onHide: () => void
   readonly onQuit: () => void
+  readonly onTrayClick?: () => void
 }
 
 /*
@@ -115,7 +118,14 @@ export function trayMenuTemplate(
   handlers: TrayHandlers,
   appName: string,
 ): MenuItemConstructorOptions[] {
+  const isZh = model.language === 'zh'
   const worn = model.personas.find((one) => one.id === model.wornId)
+  const wakeTable = isZh ? WAKE_ZH : WAKE
+  const restTable = isZh ? REST_ZH : REST
+  const showTable = isZh ? SHOW_ZH : SHOW
+  const hideTable = isZh ? HIDE_ZH : HIDE
+  const sideNamesTable = isZh ? SIDE_NAMES_ZH : SIDE_NAMES
+
   return [
     // Who she is right now, as a readout. Disabled because it is not a control
     // — the list below is.
@@ -134,7 +144,7 @@ export function trayMenuTemplate(
      * and there would be no way to tell the two apart.
      */
     {
-      label: forPronoun(model.resting.asleep ? WAKE : REST, model.pronoun),
+      label: forPronoun(model.resting.asleep ? wakeTable : restTable, model.pronoun),
       // Spread rather than `?? undefined`: with `exactOptionalPropertyTypes` an
       // explicit `undefined` is not the same as an absent key, and an absent
       // key is what "no accelerator" means.
@@ -142,7 +152,7 @@ export function trayMenuTemplate(
       click: handlers.onRest,
     },
     {
-      label: forPronoun(model.resting.hidden ? SHOW : HIDE, model.pronoun),
+      label: forPronoun(model.resting.hidden ? showTable : hideTable, model.pronoun),
       ...(model.keys.hide === null ? {} : { accelerator: model.keys.hide }),
       click: handlers.onHide,
     },
@@ -168,15 +178,15 @@ export function trayMenuTemplate(
      * here said the problems chip still used it; the chip is a popover the
      * window opens for itself and never was a listener.
      */
-    { label: 'Main Window', click: handlers.onOpen },
+    { label: isZh ? '主窗口' : 'Main Window', click: handlers.onOpen },
     {
-      label: 'Reading & Retelling…',
+      label: isZh ? '阅读与复述…' : 'Reading & Retelling…',
       ...(handlers.onOpenReading ? { click: handlers.onOpenReading } : {}),
     },
     { type: 'separator' },
     ...(model.personas.length > 1
       ? ([
-          { label: 'Wearing', enabled: false },
+          { label: isZh ? '佩戴角色' : 'Wearing', enabled: false },
           ...model.personas.map((persona): MenuItemConstructorOptions => ({
             label: persona.name,
             type: 'radio',
@@ -189,10 +199,10 @@ export function trayMenuTemplate(
         ] as MenuItemConstructorOptions[])
       : []),
     {
-      label: 'Speech bubble',
+      label: isZh ? '对话气泡' : 'Speech bubble',
       submenu: [
         {
-          label: forPronoun(SIDE_NAMES.auto, model.pronoun),
+          label: forPronoun(sideNamesTable.auto, model.pronoun),
           type: 'radio',
           checked: model.bubble.asked === 'auto',
           click: () => {
@@ -211,7 +221,7 @@ export function trayMenuTemplate(
           // `?? side` keeps a side this menu has no name for readable rather
           // than blank -- the raw key is at least true.
           label: (() => {
-            const named = (SIDE_NAMES as Record<string, ByPronoun>)[side]
+            const named = (sideNamesTable as Record<string, ByPronoun>)[side]
             return named === undefined ? side : forPronoun(named, model.pronoun)
           })(),
           type: 'radio',
@@ -227,7 +237,7 @@ export function trayMenuTemplate(
     // macOS, where an accessory app has no application menu to carry it, and
     // nowhere else. ⌘Q is CLOSE WINDOW now — see `menu.ts` — so the item that
     // ends her carries no key at all.
-    { label: `Quit ${appName}`, click: handlers.onQuit },
+    { label: isZh ? `退出 ${appName}` : `Quit ${appName}`, click: handlers.onQuit },
   ]
 }
 
@@ -243,6 +253,11 @@ const WAKE: ByPronoun = { she: 'Wake her', he: 'Wake him', it: 'Wake it' }
 const REST: ByPronoun = { she: 'Let her rest', he: 'Let him rest', it: 'Let it rest' }
 const SHOW: ByPronoun = { she: 'Show her', he: 'Show him', it: 'Show it' }
 const HIDE: ByPronoun = { she: 'Hide her', he: 'Hide him', it: 'Hide it' }
+
+const WAKE_ZH: ByPronoun = { she: '唤醒她', he: '唤醒他', it: '唤醒它' }
+const REST_ZH: ByPronoun = { she: '让她休眠', he: '让他休眠', it: '让它休眠' }
+const SHOW_ZH: ByPronoun = { she: '显示她', he: '显示他', it: '显示它' }
+const HIDE_ZH: ByPronoun = { she: '隐藏她', he: '隐藏他', it: '隐藏它' }
 
 /**
  * Which asset, per platform. Conventions, not duplication.
@@ -388,6 +403,9 @@ let tray: Tray | null = null
 export function createTray(model: () => TrayModel, handlers: TrayHandlers): TrayHandle {
   tray ??= new Tray(icon())
   const item = tray
+  if (handlers.onTrayClick) {
+    item.on('click', handlers.onTrayClick)
+  }
 
   const refresh = (): void => {
     const now = model()

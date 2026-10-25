@@ -267,6 +267,12 @@ const history: MochiHistoryApi = {
   async copy(text: string) {
     return (await ipcRenderer.invoke(guardShelf('shelf:copy'), text)) as Answers['shelf:copy']
   },
+  async resting(change: { asleep?: boolean; hidden?: boolean }) {
+    return (await ipcRenderer.invoke(
+      guardShelf('shelf:resting'),
+      change,
+    )) as Answers['shelf:resting']
+  },
   openReading() {
     ipcRenderer.send(guardReading('reading:open'))
   },

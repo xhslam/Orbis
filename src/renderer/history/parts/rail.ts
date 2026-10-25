@@ -51,7 +51,15 @@ function subLine(one: ShelfView['characters'][number]): HTMLElement {
   // The character itself rather than two loose strings: `PRONOUN_CAPS` is keyed
   // by the three pronouns the format allows, and widening that to `string` to
   // suit a helper is how an unchecked key gets in.
-  return element('div', 'rail-worn', `${PRONOUN_CAPS[one.pronoun]} · ${one.voice}`)
+  const isZh = getLanguage() === 'zh'
+  const pronounText = isZh
+    ? one.pronoun === 'she'
+      ? '她'
+      : one.pronoun === 'he'
+        ? '他'
+        : '它'
+    : PRONOUN_CAPS[one.pronoun]
+  return element('div', 'rail-worn', `${pronounText} · ${one.voice}`)
 }
 
 /**

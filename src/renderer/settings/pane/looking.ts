@@ -9,13 +9,14 @@
  */
 import { element } from '../../element'
 import { type Pane, type Field, type PaneHandlers, anchor } from '../pane'
-import { CODEX_SAYS, REMEDY_SAYS } from '@shared/delegation'
+import { CODEX_SAYS, REMEDY_SAYS, type CodexReadiness, type Remedy } from '@shared/delegation'
 import { type SettingsCodex, type SettingsView } from '@shared/ipc'
 import { readinessOf, type Certainty, type ReadinessAction } from '../../rules/readiness'
 import { checkedLabel } from '../../rules/freshness'
 import { forPronoun, label as copyFor } from '@shared/pronoun'
 import { SAYS } from '../panes-says'
 import { field, options } from '../pane'
+import { getLanguage } from '../../i18n'
 
 /**
  * Whether a Codex check is in flight, across redraws of this pane.
@@ -77,7 +78,8 @@ function workspacePicker(view: SettingsView, handlers: PaneHandlers): HTMLElemen
     The path is chosen and saved in main; nothing here names a folder. See
     `settings:choose-workspace`.
   */
-  const browse = element('button', 'btn', 'Choose…')
+  const isZh = getLanguage() === 'zh'
+  const browse = element('button', 'btn', isZh ? '选择…' : 'Choose…')
   browse.type = 'button'
   browse.addEventListener('click', () => {
     /*
@@ -104,7 +106,12 @@ function workspacePicker(view: SettingsView, handlers: PaneHandlers): HTMLElemen
       },
       (error: unknown) => {
         browse.disabled = false
-        handlers.say(`The folder could not be chosen: ${String(error)}`, true)
+        handlers.say(
+          isZh
+            ? `无法选择文件夹：${String(error)}`
+            : `The folder could not be chosen: ${String(error)}`,
+          true,
+        )
       },
     )
   })
@@ -133,7 +140,8 @@ function workspacePicker(view: SettingsView, handlers: PaneHandlers): HTMLElemen
  */
 function showConfig(view: SettingsView, handlers: PaneHandlers): HTMLElement | null {
   if (view.lookup.profilePath === null || !view.lookup.profileExists) return null
-  const open = element('button', 'btn', 'Show config')
+  const isZh = getLanguage() === 'zh'
+  const open = element('button', 'btn', isZh ? '打开配置' : 'Show config')
   open.type = 'button'
   // No argument. Main holds the profile name and knows where Codex keeps its
   // files, so the page never names the path it is displaying.
@@ -203,6 +211,7 @@ export const LOOKING: Pane = {
       : `${CODEX_SAYS[view.lookup.codex.readiness]} ${forPronoun(SAYS.noCli, view.pronoun)}`,
   fields: () => [FIELDS.codex, FIELDS.workspace, FIELDS.search, FIELDS.profile],
   render(view, handlers) {
+    const isZh = getLanguage() === 'zh'
     const wherever = workspacePicker(view, handlers)
 
     const search = document.createElement('select')
@@ -213,7 +222,7 @@ export const LOOKING: Pane = {
         // `follow` is not one of Codex's own values — it is the ABSENCE of the
         // flag, leaving whatever the machine is configured for in charge.
         // Saying so is the difference between a choice and a mystery.
-        label: mode === 'follow' ? 'follow the machine' : mode,
+        label: mode === 'follow' ? (isZh ? '跟随系统配置' : 'follow the machine') : mode,
       })),
       view.lookup.webSearch,
     )
@@ -225,7 +234,7 @@ export const LOOKING: Pane = {
     profile.type = 'text'
     profile.value = view.lookup.profile ?? ''
     profile.spellcheck = false
-    profile.placeholder = 'none'
+    profile.placeholder = isZh ? '无' : 'none'
     profile.addEventListener('change', () => {
       const name = profile.value.trim()
       handlers.lookup({ profile: name === '' ? null : name })
@@ -253,7 +262,11 @@ export const LOOKING: Pane = {
     return [
       anchor(FIELDS.codex, codexBlock(view.lookup.codex, view.pronoun, handlers)),
       field(FIELDS.workspace, view, wherever, {
-        hint: view.lookup.workspaceIsDefault ? 'nobody has chosen one' : '',
+        hint: view.lookup.workspaceIsDefault
+          ? isZh
+            ? '未指定（使用默认）'
+            : 'nobody has chosen one'
+          : '',
         note: forPronoun(SAYS.workspaceNote, view.pronoun),
       }),
       field(FIELDS.search, view, search),
@@ -330,11 +343,12 @@ function codexBlock(
     it — the sentence beside it already says this to a screen reader, and a
     second announcement of the same fact is noise.
   */
+  const isZh = getLanguage() === 'zh'
   const head = element('div', 'codex-head')
   const light = element('span', `light ${MARK[drawn.certainty]}`)
   light.setAttribute('aria-hidden', 'true')
 
-  const again = element('button', 'btn', ACTION_SAYS[drawn.action])
+  const again = element('button', 'btn', (isZh ? ACTION_SAYS_ZH : ACTION_SAYS)[drawn.action])
   again.type = 'button'
   /*
     WHAT IT IS, then WHEN WE LOOKED — two lines, because they age differently.
@@ -349,8 +363,13 @@ function codexBlock(
     means somebody can check the comparison rather than trust it.
   */
   const said = element('div', 'codex-lines')
-  said.append(element('div', 'codex-said', CODEX_SAYS[codex.readiness]))
-  const when = checkedLabel({ checkedAt: codex.checkedAt, now: Date.now(), version: codex.version })
+  said.append(element('div', 'codex-said', (isZh ? CODEX_SAYS_ZH : CODEX_SAYS)[codex.readiness]))
+  const rawWhen = checkedLabel({
+    checkedAt: codex.checkedAt,
+    now: Date.now(),
+    version: codex.version,
+  })
+  const when = isZh && rawWhen ? localizeFreshness(rawWhen) : rawWhen
   if (when !== null) said.append(element('div', 'codex-when', when))
   head.append(light, said, again)
   box.append(head)
@@ -359,7 +378,7 @@ function codexBlock(
     // Under it, not beside it: what is true and what to do are two sentences,
     // and joining them makes a paragraph somebody skims instead of an
     // instruction somebody follows.
-    box.append(element('p', 'note', REMEDY_SAYS[codex.remedy]))
+    box.append(element('p', 'note', (isZh ? REMEDY_SAYS_ZH : REMEDY_SAYS)[codex.remedy]))
   }
   /*
     The consequence FOR HER, and only when there IS one.
@@ -393,7 +412,7 @@ function codexBlock(
     if (checking) return
     checking = true
     again.disabled = true
-    again.textContent = 'Checking…'
+    again.textContent = isZh ? '正在检查…' : 'Checking…'
     void handlers.recheckCodex().then(
       () => {
         // Cleared even though nothing is redrawn here: main answers and the
@@ -404,12 +423,25 @@ function codexBlock(
       (error: unknown) => {
         checking = false
         again.disabled = false
-        again.textContent = 'Check again'
-        handlers.say(`Codex could not be checked: ${String(error)}`, true)
+        again.textContent = isZh ? '重新检查' : 'Check again'
+        handlers.say(
+          isZh
+            ? `无法检查 Codex：${String(error)}`
+            : `Codex could not be checked: ${String(error)}`,
+          true,
+        )
       },
     )
   })
   return box
+}
+
+function localizeFreshness(s: string): string {
+  return s
+    .replace('checked just now', '刚刚检查')
+    .replace(/checked (\d+) minutes? ago/, '检查于 $1 分钟前')
+    .replace(/checked (\d+) hours? ago/, '检查于 $1 小时前')
+    .replace(/checked (\d+) days? ago/, '检查于 $1 天前')
 }
 
 /**
@@ -439,4 +471,30 @@ const ACTION_SAYS: Readonly<Record<ReadinessAction, string>> = {
   'sign-in-again': 'Sign in again',
   'update-it': 'Update it',
   'try-again': 'Try again',
+}
+
+const ACTION_SAYS_ZH: Readonly<Record<ReadinessAction, string>> = {
+  'check-again': '重新检查',
+  'open-a-terminal': '打开终端',
+  'how-to-install': '安装指引',
+  'sign-in-again': '重新登录',
+  'update-it': '立即更新',
+  'try-again': '重试',
+}
+
+const CODEX_SAYS_ZH: Readonly<Record<CodexReadiness, string>> = {
+  ready: 'Codex CLI 已安装并已登录。',
+  'not-installed': '本机未找到 Codex CLI。',
+  unusable: '已找到 Codex CLI 但无法运行。',
+  'timed-out': 'Codex CLI 响应超时，系统可能正忙。',
+  'logged-out': 'Codex CLI 已安装，但尚未登录。',
+  stale: 'Codex 登录凭据已过期。请在终端运行 codex 刷新。',
+  unreadable: '已找到 Codex 凭证但无法读取。',
+}
+
+const REMEDY_SAYS_ZH: Readonly<Record<Remedy, string>> = {
+  install: '运行 `npm i -g @openai/codex` 进行安装。',
+  reinstall: '运行 `npm i -g @openai/codex` 重新安装。',
+  login: '在终端中运行一次 `codex` 完成登录。',
+  retry: '无需修复 — 请重试。',
 }

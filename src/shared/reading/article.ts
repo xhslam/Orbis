@@ -19,6 +19,13 @@ export interface PracticeScope {
   readonly endParagraph: number
 }
 
+export interface PracticeRound {
+  readonly roundIndex: number
+  readonly userTranscript: string
+  readonly coachFeedback: string
+  readonly timestamp: number
+}
+
 export interface PracticeRecord {
   readonly id: string
   readonly articleId: string
@@ -26,6 +33,8 @@ export interface PracticeRecord {
   readonly startedAt: number
   readonly finishedAt: number | null
   readonly feedbackTranscript: string | null
+  readonly userTranscript?: string | null
+  readonly rounds?: readonly PracticeRound[]
   readonly isCompleted: boolean
 }
 

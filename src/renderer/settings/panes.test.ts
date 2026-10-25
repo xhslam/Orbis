@@ -50,6 +50,7 @@ describe('the groups this page holds', () => {
       'hearing',
       'prompts',
       'on-screen',
+      'reading',
       'keys',
       // `storage` before `about`: it is where things are kept, which somebody
       // arrives looking for, and About is a version number, which nobody does.
@@ -81,6 +82,7 @@ describe('the groups this page holds', () => {
     expect(labels).not.toContain('Sound')
     expect(labels).not.toContain('What is kept')
     expect(labels).toContain('On screen')
+    expect(labels).toContain('Reading & Retelling')
     expect(labels).toContain('Hearing you')
     expect(labels).toContain('Keys')
     expect(labels).toContain('About')

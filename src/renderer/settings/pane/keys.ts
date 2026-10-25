@@ -36,6 +36,7 @@ import { forPronoun } from '@shared/pronoun'
 import { SAYS } from '../panes-says'
 import { keyGlyphs } from '../../rules/key-glyphs'
 import { whatWasPressed } from './pressed'
+import { getLanguage } from '../../i18n'
 
 /**
  * One field per binding, built FROM the binding. See `Field`.
@@ -91,18 +92,23 @@ export const KEYS: Pane = {
   attention: (view) => {
     const taken = view.keys.filter((one) => one.refused !== null)
     if (taken.length === 0) return null
-    return `${taken.map((one) => one.accelerator).join(' and ')} could not be claimed.`
+    return getLanguage() === 'zh'
+      ? `无法注册快捷键 ${taken.map((one) => one.accelerator).join(' 和 ')}。`
+      : `${taken.map((one) => one.accelerator).join(' and ')} could not be claimed.`
   },
   fields: (view) => view.keys.map(keyField),
   render(view, handlers) {
+    const isZh = getLanguage() === 'zh'
     return [
       ...view.keys.map((key) => row(key, view.about.platform, handlers)),
       element(
         'p',
         'note',
-        'These work while another application has focus, which is the whole point of them — and ' +
-          'it is also why one can be taken. A combination needs Control, Option or Command: ' +
-          'without one, that key would stop working everywhere on this machine.',
+        isZh
+          ? '这些全局快捷键在其他应用处于焦点时依然生效，因此可能会与系统或其他应用快捷键冲突。组合键必须包含 Control、Option 或 Command。'
+          : 'These work while another application has focus, which is the whole point of them — and ' +
+              'it is also why one can be taken. A combination needs Control, Option or Command: ' +
+              'without one, that key would stop working everywhere on this machine.',
       ),
       element('p', 'note', forPronoun(SAYS.keysReset, view.pronoun)),
     ]
@@ -120,9 +126,26 @@ function row(key: SettingsKey, platform: string, handlers: PaneHandlers): HTMLEl
     somebody reads rather than two names they scan, and the difference matters
     on the one pane where people arrive knowing which key they want to change.
   */
-  left.append(element('div', 'name', key.name), element('div', 'desc', key.what))
+  const isZh = getLanguage() === 'zh'
+  const keyNameZh: Record<string, string> = {
+    rest: '与角色交谈',
+    hide: '显示或隐藏角色',
+  }
+  const keyDescZh: Record<string, string> = {
+    rest: '唤醒角色或使其休眠',
+    hide: '在桌面上隐藏或重新显示形象',
+  }
+  const nameText = isZh ? (keyNameZh[key.id] ?? key.name) : key.name
+  const descText = isZh ? (keyDescZh[key.id] ?? key.what) : key.what
+  left.append(element('div', 'name', nameText), element('div', 'desc', descText))
   if (key.refused !== null) {
-    left.append(element('div', 'refused', `not working — ${key.refused}`))
+    left.append(
+      element(
+        'div',
+        'refused',
+        isZh ? `快捷键冲突失效 — ${key.refused}` : `not working — ${key.refused}`,
+      ),
+    )
   }
 
   /*
@@ -143,7 +166,7 @@ function row(key: SettingsKey, platform: string, handlers: PaneHandlers): HTMLEl
   const combo = element('button', 'btn key', keyGlyphs(key.accelerator, platform))
   combo.type = 'button'
 
-  const reset = element('button', 'btn', 'Reset')
+  const reset = element('button', 'btn', isZh ? '恢复出厂' : 'Reset')
   reset.type = 'button'
   // Nothing to go back to when it is already on what ships. The same rule the
   // prompts pane follows, and it reads `edited` for the same reason: main
@@ -202,7 +225,7 @@ function row(key: SettingsKey, platform: string, handlers: PaneHandlers): HTMLEl
       return
     }
     listening = true
-    combo.textContent = 'Press a combination…'
+    combo.textContent = isZh ? '请按下快捷键组合…' : 'Press a combination…'
     combo.classList.add('listening')
     // Disabled while capturing, because `Reset` is reachable by keyboard and a
     // capture that ate the key which triggered it would be listening for a

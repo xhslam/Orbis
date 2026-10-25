@@ -1,4 +1,5 @@
 import type { ByPronoun } from '@shared/pronoun'
+import { getLanguage } from '../i18n'
 
 /**
  * Every sentence in this window that is ABOUT her, one phrasing per pronoun.
@@ -12,7 +13,7 @@ import type { ByPronoun } from '@shared/pronoun'
  * ByPronoun`, and `label()` is what reads either kind -- which is the case
  * `pronoun.ts` describes and the reason that function exists.
  */
-export const SAYS = {
+const SAYS_EN = {
   mayDo: { she: 'What she may do', he: 'What he may do', it: 'What it may do' },
   /*
     Says WHOSE answer this is.
@@ -332,7 +333,251 @@ export const SAYS = {
       'remembers about you — is on the shelf, with the character it belongs to. This ' +
       'window holds only what is true whoever is worn.',
   },
+  readingLabel: {
+    she: 'Reading & Retelling',
+    he: 'Reading & Retelling',
+    it: 'Reading & Retelling',
+  },
+  readingWidthHead: {
+    she: 'Reading content width',
+    he: 'Reading content width',
+    it: 'Reading content width',
+  },
+  readingMarginHead: {
+    she: 'Reading page margin',
+    he: 'Reading page margin',
+    it: 'Reading page margin',
+  },
+  readingFontSizeHead: {
+    she: 'Reading font size',
+    he: 'Reading font size',
+    it: 'Reading font size',
+  },
+  readingLatinFontHead: {
+    she: 'Reading Latin font',
+    he: 'Reading Latin font',
+    it: 'Reading Latin font',
+  },
+  readingCjkFontHead: {
+    she: 'Reading CJK font',
+    he: 'Reading CJK font',
+    it: 'Reading CJK font',
+  },
+  readingLineHeightHead: {
+    she: 'Reading line height',
+    he: 'Reading line height',
+    it: 'Reading line height',
+  },
 } as const satisfies Readonly<Record<string, ByPronoun | string>>
+
+const SAYS_ZH: Readonly<Record<keyof typeof SAYS_EN, ByPronoun | string>> = {
+  mayDo: { she: '赋予她的权限', he: '赋予他的权限', it: '赋予它的权限' },
+  grantInForce: '立即生效',
+  grantAtWake: {
+    she: '下次唤醒时生效',
+    he: '下次唤醒时生效',
+    it: '下次唤醒时生效',
+  },
+  mayDoHead: '你授予的权限',
+  atOnce: {
+    she: '关闭权限立即生效，并且她会获知——当被询问时她会说明自己不再具备该权限，而不是默默失败。开场发言为特例：它在唤醒时决定，因此下次唤醒时生效。',
+    he: '关闭权限立即生效，并且他会获知——当被询问时他会说明自己不再具备该权限，而不是默默失败。开场发言为特例：它在唤醒时决定，因此下次唤醒时生效。',
+    it: '关闭权限立即生效，并且它会获知——当被询问时它会说明自己不再具备该权限，而不是默默失败。开场发言为特例：它在唤醒时决定，因此下次唤醒时生效。',
+  },
+  told: {
+    she: '她获悉自己可以做的事情',
+    he: '他获悉自己可以做的事情',
+    it: '它获悉自己可以做的事情',
+  },
+  noTools: {
+    she: '无。她没有被提供任何工具能力。',
+    he: '无。他没有被提供任何工具能力。',
+    it: '无。它没有被提供任何工具能力。',
+  },
+  promptsLabel: {
+    she: '提示词指令',
+    he: '提示词指令',
+    it: '提示词指令',
+  },
+  tooManyLanguages: {
+    she: ' 种语言，或不选以让她自动识别。',
+    he: ' 种语言，或不选以让他自动识别。',
+    it: ' 种语言，或不选以让它自动识别。',
+  },
+  noLanguages: {
+    she: '未选择任何语言，她将自动识别你的语言。请只选择日常真正会说到的语言——设置不会使用的语言提示会降低转录准确率。',
+    he: '未选择任何语言，他将自动识别你的语言。请只选择日常真正会说到的语言——设置不会使用的语言提示会降低转录准确率。',
+    it: '未选择任何语言，它将自动识别你的语言。请只选择日常真正会说到的语言——设置不会使用的语言提示会降低转录准确率。',
+  },
+  someLanguages: {
+    she: '作为倾听提示而非限制。说到其他语言时仍会转录，此处为预期优先识别的语言。',
+    he: '作为倾听提示而非限制。说到其他语言时仍会转录，此处为预期优先识别的语言。',
+    it: '作为倾听提示而非限制。说到其他语言时仍会转录，此处为预期优先识别的语言。',
+  },
+  nextWake: {
+    she: '将在下次唤醒时生效。',
+    he: '将在下次唤醒时生效。',
+    it: '将在下次唤醒时生效。',
+  },
+  restsNever: {
+    she: '从不自动休眠',
+    he: '从不自动休眠',
+    it: '从不自动休眠',
+  },
+  keysReset: {
+    she: '“重置”将快捷键还原为软件出厂预设值。在休眠时同样有效。',
+    he: '“重置”将快捷键还原为软件出厂预设值。在休眠时同样有效。',
+    it: '“重置”将快捷键还原为软件出厂预设值。在休眠时同样有效。',
+  },
+  promptsHead: {
+    she: '提示词指令',
+    he: '提示词指令',
+    it: '提示词指令',
+  },
+  onDisk: '本地文件',
+  languagesHead: {
+    she: '倾听语言偏好',
+    he: '倾听语言偏好',
+    it: '倾听语言偏好',
+  },
+  interruptibleHead: {
+    she: '允许随时打断说话',
+    he: '允许随时打断说话',
+    it: '允许随时打断说话',
+  },
+  interruptibleOn: {
+    she: '当听到任何声音时她会立即停下发言——包括环境中的其他人声。',
+    he: '当听到任何声音时他会立即停下发言——包括环境中的其他人声。',
+    it: '当听到任何声音时它会立即停下发言——包括环境中的其他人声。',
+  },
+  interruptibleOff: {
+    she: '无论外界是否有声音，她都会说完当前句子。适合嘈杂环境，但在她说完整句之前打断可能不会立即响应。',
+    he: '无论外界是否有声音，他都会说完当前句子。适合嘈杂环境，但在他说完整句之前打断可能不会立即响应。',
+    it: '无论外界是否有声音，它都会说完当前句子。适合嘈杂环境，但在它说完整句之前打断可能不会立即响应。',
+  },
+  eagernessHead: {
+    she: '接话应答速度',
+    he: '接话应答速度',
+    it: '接话应答速度',
+  },
+  eagernessNote: {
+    she: '判定你已说完话前的等待时长。在嘈杂房间中等待更久更稳定，在安静书桌前缩短等待感觉更灵敏。',
+    he: '判定你已说完话前的等待时长。在嘈杂房间中等待更久更稳定，在安静书桌前缩短等待感觉更灵敏。',
+    it: '判定你已说完话前的等待时长。在嘈杂房间中等待更久更稳定，在安静书桌前缩短等待感觉更灵敏。',
+  },
+  typefaces: 'Outfit 与 JetBrains Mono 字体遵循 SIL 开源许可打包内置。中文字体直接调用系统字体。',
+  workspaceNote: {
+    she: '她可读取的唯一目录。该目录层级之上的文件均不可访问。',
+    he: '他可读取的唯一目录。该目录层级之上的文件均不可访问。',
+    it: '它可读取的唯一目录。该目录层级之上的文件均不可访问。',
+  },
+  profileDefault: '未指定配置，当前使用默认值。配置文件可携带其自身的 MCP 服务。',
+  profileChosen: '配置文件可携带其自身的 MCP 服务。',
+  workspacePlaceholder: {
+    she: '可供其读取的目录',
+    he: '可供其读取的目录',
+    it: '可供其读取的目录',
+  },
+  workspaceSaved: {
+    she: '已保存工作区：',
+    he: '已保存工作区：',
+    it: '已保存工作区：',
+  },
+  toolWording: {
+    she: '提供给她的完整工具描述文本。文本内容可在“提示词指令”中查看。',
+    he: '提供给他的完整工具描述文本。文本内容可在“提示词指令”中查看。',
+    it: '提供给它的完整工具描述文本。文本内容可在“提示词指令”中查看。',
+  },
+  noCli: {
+    she: '未找到 Codex CLI，无法检索信息。',
+    he: '未找到 Codex CLI，无法检索信息。',
+    it: '未找到 Codex CLI，无法检索信息。',
+  },
+  noCliLong: {
+    she: '本机未找到 Codex CLI 工具。当需要查找信息时她会如实语音告知，而不是臆造记忆回答。',
+    he: '本机未找到 Codex CLI 工具。当需要查找信息时他会如实语音告知，而不是臆造记忆回答。',
+    it: '本机未找到 Codex CLI 工具。当需要查找信息时它会如实语音告知，而不是臆造记忆回答。',
+  },
+  halo: {
+    she: '角色头顶的状态光环。菜单栏图标在麦克风开启时同样会有指示。',
+    he: '角色头顶的状态光环。菜单栏图标在麦克风开启时同样会有指示。',
+    it: '角色头顶的状态光环。菜单栏图标在麦克风开启时同样会有指示。',
+  },
+  chipSwitch: {
+    she: '鼠标悬停在身上时显示',
+    he: '鼠标悬停在身上时显示',
+    it: '鼠标悬停在身上时显示',
+  },
+  chip: {
+    she: '肩旁的快捷气泡按钮，用于快速打开对话历史窗口。',
+    he: '肩旁的快捷气泡按钮，用于快速打开对话历史窗口。',
+    it: '肩旁的快捷气泡按钮，用于快速打开对话历史窗口。',
+  },
+  rests: {
+    she: '休眠会断开实时会话并释放麦克风占用。可通过点击角色、菜单栏或快捷键唤醒。',
+    he: '休眠会断开实时会话并释放麦克风占用。可通过点击角色、菜单栏或快捷键唤醒。',
+    it: '休眠会断开实时会话并释放麦克风占用。可通过点击角色、菜单栏或快捷键唤醒。',
+  },
+  kept: {
+    she: '记忆笔记与对话保留策略均为角色独立配置，保存在各自角色的档案中。',
+    he: '记忆笔记与对话保留策略均为角色独立配置，保存在各自角色的档案中。',
+    it: '记忆笔记与对话保留策略均为角色独立配置，保存在各自角色的档案中。',
+  },
+  everythingOf: {
+    she: '角色相关所有数据存放于：',
+    he: '角色相关所有数据存放于：',
+    it: '角色相关所有数据存放于：',
+  },
+  whoSheIs: {
+    she: '角色身份（姓名、音色、外观、提示词、气泡与记忆）均归属于各自角色设定。本机设置仅包含对所有角色通用的系统选项。',
+    he: '角色身份（姓名、音色、外观、提示词、气泡与记忆）均归属于各自角色设定。本机设置仅包含对所有角色通用的系统选项。',
+    it: '角色身份（姓名、音色、外观、提示词、气泡与记忆）均归属于各自角色设定。本机设置仅包含对所有角色通用的系统选项。',
+  },
+  readingLabel: {
+    she: '阅读与复述',
+    he: '阅读与复述',
+    it: '阅读与复述',
+  },
+  readingWidthHead: {
+    she: '正文最大宽度',
+    he: '正文最大宽度',
+    it: '正文最大宽度',
+  },
+  readingMarginHead: {
+    she: '左右页边距',
+    he: '左右页边距',
+    it: '左右页边距',
+  },
+  readingFontSizeHead: {
+    she: '正文字号大小',
+    he: '正文字号大小',
+    it: '正文字号大小',
+  },
+  readingLatinFontHead: {
+    she: '西文字体',
+    he: '西文字体',
+    it: '西文字体',
+  },
+  readingCjkFontHead: {
+    she: '中文字体',
+    he: '中文字体',
+    it: '中文字体',
+  },
+  readingLineHeightHead: {
+    she: '正文行高倍率',
+    he: '正文行高倍率',
+    it: '正文行高倍率',
+  },
+} as const satisfies Readonly<Record<keyof typeof SAYS_EN, ByPronoun | string>>
+
+export const SAYS = new Proxy(SAYS_EN, {
+  get(target, prop, receiver) {
+    if (getLanguage() === 'zh' && prop in SAYS_ZH) {
+      return (SAYS_ZH as Record<string, ByPronoun | string>)[prop as string]
+    }
+    return Reflect.get(target, prop, receiver)
+  },
+})
 
 /**
  * What each halo answer is called on screen.
@@ -342,11 +587,26 @@ export const SAYS = {
  * caller, so a value main starts offering before anybody writes a label for it
  * appears as itself rather than as a blank row.
  */
-export const HALO_LABELS: Readonly<Record<string, string>> = {
+const HALO_LABELS_EN: Readonly<Record<string, string>> = {
   always: 'always',
   listening: 'only while the microphone is open',
   never: 'never',
 }
+
+const HALO_LABELS_ZH: Readonly<Record<string, string>> = {
+  always: '始终显示',
+  listening: '仅在麦克风开启时',
+  never: '从不显示',
+}
+
+export const HALO_LABELS = new Proxy(HALO_LABELS_EN, {
+  get(target, prop, receiver) {
+    if (getLanguage() === 'zh' && prop in HALO_LABELS_ZH) {
+      return HALO_LABELS_ZH[prop as string]
+    }
+    return Reflect.get(target, prop, receiver)
+  },
+}) as Record<string, string>
 
 /**
  * The waiting speeds, said as waits rather than as speeds.
@@ -361,9 +621,25 @@ export const HALO_LABELS: Readonly<Record<string, string>> = {
  * these choices is four seconds, and a person deciding whether it is worth
  * touching deserves to know that before they try it.
  */
-export const EAGERNESS_LABELS: Readonly<Record<string, string>> = {
+const EAGERNESS_LABELS_EN: Readonly<Record<string, string>> = {
   auto: 'let the service decide',
   low: 'wait longest — up to 8s',
   medium: 'wait a little — up to 4s',
   high: 'answer soonest — up to 2s',
 }
+
+const EAGERNESS_LABELS_ZH: Readonly<Record<string, string>> = {
+  auto: '由服务决定',
+  low: '等待最久 — 最多 8 秒',
+  medium: '稍作等待 — 最多 4 秒',
+  high: '尽快回答 — 最多 2 秒',
+}
+
+export const EAGERNESS_LABELS = new Proxy(EAGERNESS_LABELS_EN, {
+  get(target, prop, receiver) {
+    if (getLanguage() === 'zh' && prop in EAGERNESS_LABELS_ZH) {
+      return EAGERNESS_LABELS_ZH[prop as string]
+    }
+    return Reflect.get(target, prop, receiver)
+  },
+}) as Record<string, string>

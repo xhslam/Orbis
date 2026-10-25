@@ -30,6 +30,9 @@ export function buildRetellingSessionConfig(options: RetellingSessionOptions): u
             create_response: false,
             interrupt_response: false,
           },
+          transcription: {
+            model: 'gpt-transcribe',
+          },
         },
       },
     },
@@ -51,12 +54,14 @@ export interface RetellingSessionHandlers {
   readonly onStateChange: (state: RetellingState) => void
   readonly onTranscriptDelta: (delta: string) => void
   readonly onTranscriptDone: (fullText: string) => void
+  readonly onUserTranscript?: (transcript: string) => void
   readonly onAudioStream: (stream: MediaStream) => void
 }
 
 export interface ReadingVoiceSession {
   readonly startRecording: () => void
   readonly finishSpeaking: (instructionsOverride?: string) => boolean
+  readonly updateInstructions?: (instructions: string) => void
   readonly stopPlayback: () => void
   readonly close: () => void
 }
@@ -109,6 +114,7 @@ export async function openReadingVoiceSession(
 
   const channel = pc.createDataChannel('oai-events')
   let currentTranscript = ''
+  let currentUserTranscript = ''
   let configured = false
   let isRecording = false
   let isEvaluating = false
@@ -133,7 +139,12 @@ export async function openReadingVoiceSession(
     // Reuse battle-tested frames.ts parser for typed server frames
     const frame = parseServerFrame(event.data)
 
-    if (frame.kind === 'saying') {
+    if (frame.kind === 'heard') {
+      currentUserTranscript = currentUserTranscript
+        ? `${currentUserTranscript} ${frame.transcript}`
+        : frame.transcript
+      handlers.onUserTranscript?.(currentUserTranscript)
+    } else if (frame.kind === 'saying') {
       if (isEvaluating) {
         isEvaluating = false
         handlers.onStateChange('responding')
@@ -192,6 +203,7 @@ export async function openReadingVoiceSession(
         return
       }
       currentTranscript = ''
+      currentUserTranscript = ''
       isEvaluating = false
       hasUserSpokenAudio = true
       localStream.getAudioTracks().forEach((t) => {
@@ -232,6 +244,23 @@ export async function openReadingVoiceSession(
         }
       }, 200)
       return true
+    },
+
+    updateInstructions(instructions: string) {
+      if (channel.readyState === 'open') {
+        try {
+          channel.send(
+            JSON.stringify({
+              type: 'session.update',
+              session: {
+                instructions,
+              },
+            }),
+          )
+        } catch (e) {
+          console.warn('[reading] Failed to update session instructions:', e)
+        }
+      }
     },
 
     stopPlayback() {

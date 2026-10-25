@@ -150,6 +150,22 @@ describe('who opens a session', () => {
     expect(body).not.toContain('createCompanionWindow()')
   })
 
+  it('shows history window on activate if companion is hidden', () => {
+    const index = code(source('../../main/index.ts'))
+    const activate = index.slice(index.indexOf("app.on('activate'"))
+    const body = activate.slice(0, activate.indexOf('\n    })'))
+    expect(body).toContain('if (resting.hidden)')
+    expect(body).toContain('showHistoryWindow()')
+  })
+
+  it('shows history window on second-instance if companion is hidden', () => {
+    const index = code(source('../../main/index.ts'))
+    const secondInstance = index.slice(index.indexOf("app.on('second-instance'"))
+    const body = secondInstance.slice(0, secondInstance.indexOf('\n})'))
+    expect(body).toContain('if (resting.hidden)')
+    expect(body).toContain('showHistoryWindow()')
+  })
+
   it('has a close frame, and the renderer acts on it', () => {
     // Resting tears the session down rather than muting a track. Without the
     // renderer's half the frame goes nowhere and rest silently means nothing.

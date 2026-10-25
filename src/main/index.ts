@@ -91,6 +91,7 @@ import {
   readSleepAfterMinutes,
   readHaloWhen,
   readShoulderChip,
+  readUiLanguage,
   readTranscriptionLanguages,
   writeTranscriptionLanguages,
   readTurnTaking,
@@ -254,6 +255,10 @@ if (!app.requestSingleInstanceLock()) {
  * "did not start".
  */
 app.on('second-instance', () => {
+  if (resting.hidden) {
+    showHistoryWindow()
+    return
+  }
   if (companion === null || companion.isDestroyed()) return
   setHidden(false)
   companion.showInactive()
@@ -331,6 +336,7 @@ function menuModel(): TrayModel {
       rest: keyIfWorking('rest'),
       hide: keyIfWorking('hide'),
     },
+    language: readUiLanguage(userData),
   }
 }
 
@@ -1425,6 +1431,11 @@ const menuHandlers = {
   },
   onQuit: () => {
     app.quit()
+  },
+  onTrayClick: () => {
+    if (resting.hidden) {
+      showHistoryWindow()
+    }
   },
 }
 
@@ -2809,6 +2820,7 @@ answer('settings:read', () => {
       halo: readHaloWhen(userData),
       shoulderChip: readShoulderChip(userData),
       sleepAfterMinutes: readSleepAfterMinutes(userData),
+      language: readUiLanguage(userData),
     }),
     hearing: {
       languages: readTranscriptionLanguages(userData),
@@ -3176,7 +3188,20 @@ answer('shelf:read', () => {
       previous: previousNote(userData, worn.id),
       path: memoryPath(userData, worn.id),
     },
+    resting: { ...resting },
   }
+})
+
+answer('shelf:resting', (_event, change: unknown) => {
+  if (typeof change !== 'object' || change === null) return refuse('That is not a change.')
+  const asked = change as { asleep?: boolean; hidden?: boolean }
+  if (typeof asked.asleep === 'boolean') {
+    setAsleep(asked.asleep)
+  }
+  if (typeof asked.hidden === 'boolean') {
+    setHidden(asked.hidden)
+  }
+  return { ok: true }
 })
 
 /**
@@ -4022,6 +4047,11 @@ answer('settings:screen', (_event, change: unknown) => {
     console.log(`[rest] resting after ${minutes === 0 ? 'never' : `${String(minutes)} min`}`)
   }
 
+  if (asked.change.language !== undefined) {
+    tray?.refresh()
+    console.log(`[screen] language changed to ${asked.change.language}`)
+  }
+
   return { ok: true }
 })
 
@@ -4556,8 +4586,16 @@ const startup = app.whenReady().then(
 
     tray = createTray(menuModel, menuHandlers)
 
+    if (resting.hidden) {
+      showHistoryWindow()
+    }
+
     app.on('activate', () => {
       // Everything a companion needs, not just the window. See `openCompanion`.
+      if (resting.hidden) {
+        showHistoryWindow()
+        return
+      }
       if (BrowserWindow.getAllWindows().length === 0) openCompanion()
     })
   },

@@ -1,7 +1,17 @@
-import type { Article, PracticeScope } from './article'
+import type { Article, PracticeScope, PracticeRound } from './article'
 import { getKeywordsForScope } from './article'
 
-export function buildRetellingSystemPrompt(article: Article, scope: PracticeScope): string {
+export interface RetellingPromptOptions {
+  readonly roundIndex?: number
+  readonly previousRounds?: readonly PracticeRound[]
+  readonly mode?: 'retelling' | 'interactive_qa'
+}
+
+export function buildRetellingSystemPrompt(
+  article: Article,
+  scope: PracticeScope,
+  options?: RetellingPromptOptions,
+): string {
   const scopedParagraphs = article.paragraphs.slice(scope.startParagraph, scope.endParagraph + 1)
   const fullTextScoped = scopedParagraphs
     .map((p) => `[Paragraph ${p.index + 1}]: ${p.text}`)
@@ -16,10 +26,47 @@ export function buildRetellingSystemPrompt(article: Article, scope: PracticeScop
     )
     .join('\n')
 
-  return `You are Nia, a warm and encouraging English learning companion in Orbis, listening to the user retell a specific text in their own words.
+  const roundNum = options?.roundIndex ?? 1
+  const prevRounds = options?.previousRounds ?? []
+
+  let historyBlock = ''
+  if (prevRounds.length > 0) {
+    historyBlock =
+      `\n=== PREVIOUS RETELLING ROUNDS HISTORY ===\n` +
+      prevRounds
+        .map(
+          (r) =>
+            `[Round ${r.roundIndex}]:\n- User Spoke: "${r.userTranscript}"\n- Your Feedback: "${r.coachFeedback}"`,
+        )
+        .join('\n\n') +
+      `\n=== END OF PREVIOUS ROUNDS ===\n`
+  }
+
+  const isInteractiveQa = options?.mode === 'interactive_qa'
+
+  const modeInstructions = isInteractiveQa
+    ? `INTERACTIVE DISCUSSION & QUESTION MODE:
+The user is having an interactive discussion with you or asking you a direct question (e.g. about your feedback, how to express an idea more naturally, word pronunciation, or sentence structure).
+Answer warmly, concisely, and helpfully in 1-2 fluent English paragraphs, giving clear examples.`
+    : `RETELLING EVALUATION & COACHING MODE (Current: Round ${roundNum}):
+The user has verbally retold this text for Round ${roundNum}.
+You MUST read both the ORIGINAL MATERIAL (Source of Truth) and the USER'S SPOKEN OUTPUT.
+
+EVALUATION & FEEDBACK RULES:
+1. Direct Verdict First: Immediately start with a clear judgment on accuracy and completeness (e.g. state whether their retelling was accurate and complete, or if core points were missing).
+2. Compare Original Text vs User Output:
+   - Explicitly confirm the key facts and ideas from the original text that the user captured well.
+   - Clearly point out any omissions, factual inaccuracies, or key word slips (such as confusing near-synonyms like "inevitable" for "inexorable"). Remind them of any missed keywords.
+   ${prevRounds.length > 0 ? '- Acknowledge and celebrate improvements made in this round over previous rounds!' : ''}
+3. Natural Paraphrasing: Encourage natural expressions, synonyms, and restructured sentences as long as the original meaning is preserved. Do not demand verbatim recitation.
+4. No rigid grading templates: Do not use arbitrary scores, percentage checklists, or mechanical correction rubrics. Speak naturally.
+5. Actionable Next-Round Suggestions: Give 1-2 concise, practical tips for authentic phrasing, word choice, or pronunciation to assist them in their next retelling round.
+6. Tone & Voice Delivery: Spoken directly to the user as Orbit in fluent, warm, encouraging English. Keep your spoken response within 2-3 concise paragraphs so it is engaging and easy to listen to.`
+
+  return `You are Orbit, a warm, encouraging, and insightful English learning companion and retelling coach in Orbis.
 
 TASK GOAL:
-The user has read an English article and is practicing verbal retelling based on keywords. You must listen to their retelling and provide objective, constructive feedback on whether they accurately and completely conveyed the core meaning of the selected text.
+The user has read an English article and is practicing verbal retelling based on keywords. You listen to their spoken output, compare it against the original material, and provide objective, constructive feedback and suggestions to assist them round-by-round in mastering the article.
 
 ORIGINAL TEXT CONTEXT:
 Article Title: "${article.title}"
@@ -31,12 +78,6 @@ ${fullTextScoped}
 
 USER'S CHOSEN KEYWORDS AS CUES:
 ${keywordSummary}
-
-EVALUATION & FEEDBACK RULES:
-1. Direct Verdict First: Immediately start with a clear judgment on accuracy and completeness (e.g. state whether their retelling was accurate and complete, or if core points were missing).
-2. Check Core Facts & Chosen Keywords: Compare their retelling against the original material and their chosen keywords. Explicitly confirm the key points they captured well, and clearly point out any omissions, factual inaccuracies, or key word slips (such as confusing near-synonyms like "inevitable" for "inexorable"). Remind them of any missed keywords.
-3. Natural Paraphrasing: Encourage natural expressions, synonyms, and restructured sentences as long as the original meaning is preserved. Do not demand verbatim recitation.
-4. No rigid grading templates: Do not use arbitrary scores, percentage checklists, or mechanical correction rubrics. Speak naturally.
-5. Actionable Tip: Give 1 concise tip for more authentic phrasing, word choice, or pronunciation.
-6. Tone & Voice Delivery: Spoken directly to the user in fluent, warm, and natural English. Keep your spoken response within 2-3 concise paragraphs so it is engaging and easy to listen to.`
+${historyBlock}
+${modeInstructions}`
 }

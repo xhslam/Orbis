@@ -3,6 +3,7 @@ import {
   type Article,
   type ArticleSummary,
   type PracticeRecord,
+  type PracticeRound,
   type PracticeScope,
 } from '@shared/reading/article'
 import { buildRetellingSystemPrompt } from '@shared/reading/prompt'
@@ -24,17 +25,13 @@ import {
 
 export type ViewState = 'home' | 'article' | 'retelling' | 'feedback'
 
-export interface ReadingAppOptions {
-  readonly onOpenSettings?: (() => void) | undefined
-}
-
 export interface ReadingApp {
   mount(): Promise<void>
   refresh(): Promise<void>
   cleanup(): void
 }
 
-export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions): ReadingApp {
+export function createReadingApp(root: HTMLElement): ReadingApp {
   const api = window.orbisReading
   const speaker = new Audio()
   speaker.autoplay = true
@@ -45,8 +42,13 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
   let currentScope: PracticeScope = { startParagraph: 0, endParagraph: 0 }
   let session: ReadingVoiceSession | null = null
   let sessionState: RetellingState = 'idle'
-  let liveTranscript = ''
+  let liveTranscript = '' // Mochi's feedback transcript
+  let currentUserTranscript = '' // User's spoken retelling transcript
   let practiceRecord: PracticeRecord | null = null
+  let rounds: PracticeRound[] = []
+  let currentRoundIndex = 1
+  let selectedRoundIndex = 1
+  let isAskingQuestion = false
 
   const unsubLang = onLanguageChange(() => {
     render()
@@ -70,21 +72,29 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
     sessionState = 'idle'
   }
 
-  async function startRetellingSession(): Promise<void> {
+  async function startRetellingSession(preserveRounds = true): Promise<void> {
     cleanupSession()
     if (!currentArticle) return
 
-    practiceRecord = {
-      id: `pr-${Date.now()}`,
-      articleId: currentArticle.id,
-      scope: currentScope,
-      startedAt: Date.now(),
-      finishedAt: null,
-      feedbackTranscript: null,
-      isCompleted: false,
+    if (!practiceRecord || !preserveRounds) {
+      practiceRecord = {
+        id: `pr-${Date.now()}`,
+        articleId: currentArticle.id,
+        scope: currentScope,
+        startedAt: Date.now(),
+        finishedAt: null,
+        feedbackTranscript: null,
+        userTranscript: null,
+        rounds: [],
+        isCompleted: false,
+      }
     }
 
-    const prompt = buildRetellingSystemPrompt(currentArticle, currentScope)
+    const prompt = buildRetellingSystemPrompt(currentArticle, currentScope, {
+      roundIndex: currentRoundIndex,
+      previousRounds: rounds,
+      mode: isAskingQuestion ? 'interactive_qa' : 'retelling',
+    })
 
     try {
       session = await openReadingVoiceSession(
@@ -106,7 +116,37 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
           },
           onTranscriptDone: (full) => {
             liveTranscript = full
+            // If in retelling feedback mode and speech settled, record into current round
+            if (!isAskingQuestion && currentArticle) {
+              const roundData: PracticeRound = {
+                roundIndex: currentRoundIndex,
+                userTranscript: currentUserTranscript.trim() || t().myOutputEmpty,
+                coachFeedback: full.trim() || t().feedbackComplete,
+                timestamp: Date.now(),
+              }
+              const existingIdx = rounds.findIndex((r) => r.roundIndex === currentRoundIndex)
+              if (existingIdx >= 0) {
+                rounds[existingIdx] = roundData
+              } else {
+                rounds.push(roundData)
+              }
+            }
             render()
+          },
+          onUserTranscript: (userText) => {
+            currentUserTranscript = userText
+            const userEl = document.querySelector('#user-transcript-content')
+            if (userEl) {
+              userEl.innerHTML = userText
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br />')
+            }
+            const liveSpeechEl = document.querySelector('.live-speech-text')
+            if (liveSpeechEl) {
+              liveSpeechEl.textContent = userText
+            }
           },
           onAudioStream: (stream) => {
             speaker.srcObject = stream
@@ -119,6 +159,12 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
       sessionState = { error: err instanceof Error ? err.message : String(err) }
       render()
     }
+  }
+
+  async function refreshMochiSession(): Promise<void> {
+    sessionState = 'opening'
+    render()
+    await startRetellingSession(true)
   }
 
   function render(): void {
@@ -226,7 +272,6 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
         {
           article: currentArticle,
           scope: currentScope,
-          onOpenSettings: options?.onOpenSettings,
           onScopeChange: (scope) => {
             currentScope = scope
           },
@@ -242,11 +287,16 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
           onStartRetelling: (scope) => {
             void (async () => {
               currentScope = scope
+              rounds = []
+              currentRoundIndex = 1
+              selectedRoundIndex = 1
+              currentUserTranscript = ''
+              liveTranscript = ''
+              isAskingQuestion = false
               currentView = 'retelling'
               sessionState = 'opening'
-              liveTranscript = ''
               render()
-              await startRetellingSession()
+              await startRetellingSession(false)
             })()
           },
           onBack: () => {
@@ -273,13 +323,14 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
           scope: currentScope,
           session,
           state: sessionState,
-          onOpenSettings: options?.onOpenSettings,
+          roundIndex: currentRoundIndex,
+          liveUserTranscript: currentUserTranscript,
           onStartRecording: () => {
             if (!session || (typeof sessionState === 'object' && 'error' in sessionState)) {
               void (async () => {
                 sessionState = 'opening'
                 render()
-                await startRetellingSession()
+                await startRetellingSession(true)
               })()
               return
             }
@@ -288,12 +339,19 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
           onFinishSpeaking: () => {
             if (!session || !currentArticle) return
             speaker.play().catch(() => {})
-            const prompt = buildRetellingSystemPrompt(currentArticle, currentScope)
+            const prompt = buildRetellingSystemPrompt(currentArticle, currentScope, {
+              roundIndex: currentRoundIndex,
+              previousRounds: rounds,
+              mode: 'retelling',
+            })
             const submitted = session.finishSpeaking(prompt)
             if (submitted) {
               currentView = 'feedback'
               render()
             }
+          },
+          onRefreshSession: () => {
+            void refreshMochiSession()
           },
           onCancel: () => {
             cleanupSession()
@@ -314,15 +372,84 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
           article: currentArticle,
           scope: currentScope,
           transcript: liveTranscript,
+          coachTranscript: liveTranscript,
+          userTranscript: currentUserTranscript,
           state: sessionState,
           session,
-          onTryAgain: () => {
-            cleanupSession()
-            currentView = 'retelling'
-            sessionState = 'opening'
-            liveTranscript = ''
+          currentRoundIndex,
+          rounds,
+          selectedRoundIndex,
+          isAskingQuestion,
+          onSelectRound: (roundNum) => {
+            selectedRoundIndex = roundNum
             render()
-            void startRetellingSession()
+          },
+          onStartNextRound: () => {
+            // Save current round record if not already saved
+            if (liveTranscript || currentUserTranscript) {
+              const roundData: PracticeRound = {
+                roundIndex: currentRoundIndex,
+                userTranscript: currentUserTranscript.trim() || t().myOutputEmpty,
+                coachFeedback: liveTranscript.trim() || t().feedbackComplete,
+                timestamp: Date.now(),
+              }
+              const existingIdx = rounds.findIndex((r) => r.roundIndex === currentRoundIndex)
+              if (existingIdx >= 0) {
+                rounds[existingIdx] = roundData
+              } else {
+                rounds.push(roundData)
+              }
+            }
+            currentRoundIndex += 1
+            selectedRoundIndex = currentRoundIndex
+            currentUserTranscript = ''
+            liveTranscript = ''
+            isAskingQuestion = false
+            currentView = 'retelling'
+            sessionState = 'ready'
+            render()
+
+            const nextPrompt = buildRetellingSystemPrompt(currentArticle!, currentScope, {
+              roundIndex: currentRoundIndex,
+              previousRounds: rounds,
+              mode: 'retelling',
+            })
+            session?.updateInstructions?.(nextPrompt)
+          },
+          onAskQuestionStart: () => {
+            if (!session) {
+              void refreshMochiSession()
+              return
+            }
+            isAskingQuestion = true
+            liveTranscript = ''
+            session.startRecording()
+            render()
+          },
+          onAskQuestionFinish: () => {
+            if (!session || !currentArticle) return
+            isAskingQuestion = false
+            speaker.play().catch(() => {})
+            const qaPrompt = buildRetellingSystemPrompt(currentArticle, currentScope, {
+              roundIndex: currentRoundIndex,
+              previousRounds: rounds,
+              mode: 'interactive_qa',
+            })
+            session.finishSpeaking(qaPrompt)
+            render()
+          },
+          onRefreshSession: () => {
+            void refreshMochiSession()
+          },
+          onTryAgain: () => {
+            currentUserTranscript = ''
+            liveTranscript = ''
+            isAskingQuestion = false
+            currentView = 'retelling'
+            render()
+            if (!session || (typeof sessionState === 'object' && 'error' in sessionState)) {
+              void refreshMochiSession()
+            }
           },
           onReviewArticle: () => {
             cleanupSession()
@@ -333,13 +460,36 @@ export function createReadingApp(root: HTMLElement, options?: ReadingAppOptions)
             void (async () => {
               if (currentArticle && api) {
                 const finishedAt = Date.now()
+                if (liveTranscript || currentUserTranscript) {
+                  const roundData: PracticeRound = {
+                    roundIndex: currentRoundIndex,
+                    userTranscript: currentUserTranscript.trim() || t().myOutputEmpty,
+                    coachFeedback: liveTranscript.trim() || t().feedbackComplete,
+                    timestamp: Date.now(),
+                  }
+                  const existingIdx = rounds.findIndex((r) => r.roundIndex === currentRoundIndex)
+                  if (existingIdx >= 0) {
+                    rounds[existingIdx] = roundData
+                  } else {
+                    rounds.push(roundData)
+                  }
+                }
+
                 const record: PracticeRecord = {
                   id: `pr-${finishedAt}-${Math.random().toString(36).slice(2, 6)}`,
                   articleId: currentArticle.id,
                   scope: currentScope,
                   startedAt: practiceRecord?.startedAt ?? finishedAt,
                   finishedAt,
-                  feedbackTranscript: liveTranscript.length > 0 ? liveTranscript : null,
+                  feedbackTranscript:
+                    liveTranscript.length > 0
+                      ? liveTranscript
+                      : (rounds[rounds.length - 1]?.coachFeedback ?? null),
+                  userTranscript:
+                    currentUserTranscript.length > 0
+                      ? currentUserTranscript
+                      : (rounds[rounds.length - 1]?.userTranscript ?? null),
+                  rounds: [...rounds],
                   isCompleted: true,
                 }
                 await api.savePractice(record)

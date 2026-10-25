@@ -18,6 +18,7 @@ import {
   readShelfPlace,
   readShoulderChip,
   readSleepAfterMinutes,
+  readUiLanguage,
   readTranscriptionLanguages,
   readTurnTaking,
   readWornPersonaId,
@@ -298,6 +299,26 @@ describe('whether the control at her shoulder is offered', () => {
     writeScreen(userData, { shoulderChip: false })
     expect(readHaloWhen(userData)).toBe('never')
     expect(readShoulderChip(userData)).toBe(false)
+  })
+})
+
+describe('which UI language is chosen', () => {
+  it('defaults to en when unset', () => {
+    expect(readUiLanguage(userData)).toBe('en')
+  })
+
+  it('reads stored preference', () => {
+    writePreferences({ uiLanguage: 'zh' })
+    expect(readUiLanguage(userData)).toBe('zh')
+    writePreferences({ uiLanguage: 'en' })
+    expect(readUiLanguage(userData)).toBe('en')
+  })
+
+  it('round-trips language through writeScreen', () => {
+    writeScreen(userData, { language: 'zh' })
+    expect(readUiLanguage(userData)).toBe('zh')
+    writeScreen(userData, { language: 'en' })
+    expect(readUiLanguage(userData)).toBe('en')
   })
 })
 

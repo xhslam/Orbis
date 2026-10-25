@@ -131,8 +131,10 @@ export const LOOKS: Readonly<Record<Emotion, Look>> = {
     eyeLower: 0.92,
     eyeWidth: 1.06,
     eyeTilt: 0.28,
-    mouthUpper: 2,
-    mouthLower: 0,
+    // MOCHI's neutral upper mouth arc is 0, so multiplying it cannot create
+    // the frown. A negative lower arc bends the existing mouth upward.
+    mouthUpper: 0,
+    mouthLower: -0.25,
     mouthWidth: 0.84,
     cheek: 0.28,
     gazeY: -0.14,

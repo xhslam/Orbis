@@ -13,6 +13,7 @@ import { element } from '../../element'
 import { type ShelfHandlers, section } from './row'
 import { type ShelfCharacter, type ShelfView } from '@shared/history-window'
 import { forPronoun } from '@shared/pronoun'
+import { getLanguage } from '../../i18n'
 /**
  * Her manner, and the two moments she is given words for.
  *
@@ -25,6 +26,7 @@ export function promptSection(
   worn: ShelfCharacter,
   handlers: ShelfHandlers,
 ): HTMLElement {
+  const isZh = getLanguage() === 'zh'
   const style = element('textarea')
   style.rows = 5
   style.value = worn.style
@@ -36,14 +38,14 @@ export function promptSection(
 
   const moments = element('div', 'moments')
   for (const moment of [
-    { key: 'greeting', label: 'On waking', value: worn.greeting },
-    { key: 'farewell', label: 'On going to sleep', value: worn.farewell },
+    { key: 'greeting', label: isZh ? '唤醒问候' : 'On waking', value: worn.greeting },
+    { key: 'farewell', label: isZh ? '休眠告别' : 'On going to sleep', value: worn.farewell },
   ] as const) {
     const box = element('input')
     box.type = 'text'
     // Both of these are legitimately empty — a character can have nothing to
     // convey on waking — and an unboxed empty field is a blank patch of paper.
-    box.placeholder = 'nothing in particular'
+    box.placeholder = isZh ? '无特殊要求' : 'nothing in particular'
     box.value = moment.value
     box.addEventListener('change', () => {
       if (box.value.trim() === moment.value) {

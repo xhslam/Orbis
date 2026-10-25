@@ -744,6 +744,7 @@ export interface ScreenWrite {
   readonly halo?: HaloWhen
   readonly shoulderChip?: boolean
   readonly sleepAfterMinutes?: number
+  readonly language?: 'en' | 'zh'
 }
 
 /**
@@ -774,8 +775,20 @@ export function writeScreen(userData: string, change: ScreenWrite): void {
     }
     next['sleepAfterMinutes'] = change.sleepAfterMinutes
   }
+  if (change.language !== undefined) {
+    if (change.language !== 'en' && change.language !== 'zh') {
+      throw new Error(`not a supported UI language: ${change.language}`)
+    }
+    next['uiLanguage'] = change.language
+  }
   if (Object.keys(next).length === 0) return
   writeMerged(userData, next)
+}
+
+export function readUiLanguage(userData: string): 'en' | 'zh' {
+  const found = preferences(userData)?.['uiLanguage']
+  if (found === 'zh' || found === 'en') return found
+  return 'en'
 }
 
 /**

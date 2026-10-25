@@ -224,6 +224,8 @@ export const SHELF_CHANNELS = [
    * which is one enum wide, and a window may not widen it.
    */
   'shelf:wear-face',
+  /** Change desktop companion resting state (wake/sleep, show/hide). */
+  'shelf:resting',
 ] as const
 
 export type ShelfChannel = (typeof SHELF_CHANNELS)[number]
@@ -478,6 +480,8 @@ export interface SettingsScreen {
   readonly sleepAfterMinutes: number
   /** Every value the pane may offer, so it never draws one main would refuse. */
   readonly sleepAfterChoices: readonly number[]
+  /** UI display language (English / 简体中文). */
+  readonly language?: 'en' | 'zh'
 }
 
 /**
@@ -535,6 +539,7 @@ export interface ScreenChange {
   readonly halo?: string
   readonly shoulderChip?: boolean
   readonly sleepAfterMinutes?: number
+  readonly language?: string
 }
 
 /**

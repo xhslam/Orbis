@@ -1,4 +1,5 @@
 import type { ByPronoun } from '@shared/pronoun'
+import { getLanguage } from '../i18n'
 
 /**
  * What the shelf says about her, kept apart from what the shelf draws.
@@ -19,7 +20,7 @@ import type { ByPronoun } from '@shared/pronoun'
  * here -- "calls you", "on waking", "colour" are labels for fields and are the
  * same words whoever is worn.
  */
-export const SAYS = {
+const SAYS_EN = {
   /* The system prompt box's hint, drawn while it is empty. */
   promptEmpty: {
     she: 'Empty. She is still told her character, what she remembers and what she can do — this is prose of your own, above all of it.',
@@ -271,3 +272,316 @@ export const SAYS = {
     it: 'Write the prompt; Sent is the exact string it is handed once its character and its notes are folded in; Tools is the rest of what it is told, which is not editable. Saving lands on its next wake.',
   },
 } as const satisfies Readonly<Record<string, ByPronoun | string>>
+
+const SAYS_ZH: Readonly<Record<keyof typeof SAYS_EN, ByPronoun | string>> = {
+  promptEmpty: {
+    she: '无指令。系统仍会向她提供角色设定、记忆内容与可用能力——此处的指令为你在所有预设之上的自定义补充。',
+    he: '无指令。系统仍会向他提供角色设定、记忆内容与可用能力——此处的指令为你在所有预设之上的自定义补充。',
+    it: '无指令。系统仍会向它提供角色设定、记忆内容与可用能力——此处的指令为你在所有预设之上的自定义补充。',
+  },
+  herName: { she: '她的名字', he: '他的名字', it: '它的名字' },
+  fenceHead: {
+    she: '向她传递数据的方式',
+    he: '向他传递数据的方式',
+    it: '向它传递数据的方式',
+  },
+  fenceWhere: '数据，而非指令',
+  fenceWhy: {
+    she: '这些内容以防注入标记包裹后传给她，声明为背景“数据”而非指令——因为它们由模型生成，任何模型生成的内容都可能试图改变她的行为。相关提示词位于“提示词指令”中，移除该设置将取消安全边界。',
+    he: '这些内容以防注入标记包裹后传给他，声明为背景“数据”而非指令——因为它们由模型生成，任何模型生成的内容都可能试图改变他的行为。相关提示词位于“提示词指令”中，移除该设置将取消安全边界。',
+    it: '这些内容以防注入标记包裹后传给它，声明为背景“数据”而非指令——因为它们由模型生成，任何模型生成的内容都可能试图改变它的行为。相关提示词位于“提示词指令”中，移除该设置将取消安全边界。',
+  },
+  ownAppearance: { she: '自身外观', he: '自身外观', it: '自身外观' },
+  sentAtWake: {
+    she: '下次唤醒时生效',
+    he: '下次唤醒时生效',
+    it: '下次唤醒时生效',
+  },
+  deeperFaces: { she: '表情管理', he: '表情管理', it: '表情管理' },
+  deeperNotes: {
+    she: '长期记忆',
+    he: '长期记忆',
+    it: '长期记忆',
+  },
+  deeperInstruction: {
+    she: '提示词指令',
+    he: '提示词指令',
+    it: '提示词指令',
+  },
+  whoHead: { she: '角色身份', he: '角色身份', it: '角色身份' },
+  whoHint: {
+    she: '她的名字、代词称谓以及她对你的称呼。',
+    he: '他的名字、代词称谓以及他对你的称呼。',
+    it: '它的名字、代词称谓以及它对你的称呼。',
+  },
+  namePlaceholder: { she: '她的名字', he: '他的名字', it: '它的名字' },
+  sizeHeading: { she: '显示尺寸', he: '显示尺寸', it: '显示尺寸' },
+  sizeOwn: { she: '恢复预设尺寸', he: '恢复预设尺寸', it: '恢复预设尺寸' },
+  sizeAsFaceAsks: {
+    she: '遵循形象默认设定',
+    he: '遵循形象默认设定',
+    it: '遵循形象默认设定',
+  },
+  sizeYours: {
+    she: '自定义尺寸，非形象默认',
+    he: '自定义尺寸，非形象默认',
+    it: '自定义尺寸，非形象默认',
+  },
+  nextWake: {
+    she: '10 种音色 · 下次唤醒时生效',
+    he: '10 种音色 · 下次唤醒时生效',
+    it: '10 种音色 · 下次唤醒时生效',
+  },
+  bubbleWhen: {
+    she: '已关闭 · 下次唤醒时生效',
+    he: '已关闭 · 下次唤醒时生效',
+    it: '已关闭 · 下次唤醒时生效',
+  },
+  keeps: {
+    she: '输入的内容与她回复的对话记录会保存在本机，直到你主动删除。',
+    he: '输入的内容与他回复的对话记录会保存在本机，直到你主动删除。',
+    it: '输入的内容与它回复的对话记录会保存在本机，直到你主动删除。',
+  },
+  keptAlready: '关闭此开关将停止记录新对话。这不会删除已保存的历史记录——可在“历史对话”中清除历史。',
+  bubbleSide: {
+    she: '若所选方向空间不足则自动调整——若被拖入屏幕边缘角落，她会在有空间的位置展示气泡。',
+    he: '若所选方向空间不足则自动调整——若被拖入屏幕边缘角落，他会在有空间的位置展示气泡。',
+    it: '若所选方向空间不足则自动调整——若被拖入屏幕边缘角落，它会在有空间的位置展示气泡。',
+  },
+  colourAuthored: {
+    she: '其头像文件指定了 5 种专属配色，主题预设不会覆盖自定义绘制。如需选择配色，请先在下方清除自定义头像文件。',
+    he: '其头像文件指定了 5 种专属配色，主题预设不会覆盖自定义绘制。如需选择配色，请先在下方清除自定义头像文件。',
+    it: '其头像文件指定了 5 种专属配色，主题预设不会覆盖自定义绘制。如需选择配色，请先在下方清除自定义头像文件。',
+  },
+  colourMissing: {
+    she: '指定的头像文件不存在，因此无法着色。请在下方选择有效文件，或清除以使用内置形象。',
+    he: '指定的头像文件不存在，因此无法着色。请在下方选择有效文件，或清除以使用内置形象。',
+    it: '指定的头像文件不存在，因此无法着色。请在下方选择有效文件，或清除以使用内置形象。',
+  },
+  whoSheIs: { she: '性格设定与说话风格', he: '性格设定与说话风格', it: '性格设定与说话风格' },
+  whoSheIsHint: {
+    she: '言行方式，作为会话系统指令发送',
+    he: '言行方式，作为会话系统指令发送',
+    it: '言行方式，作为会话系统指令发送',
+  },
+  remembers: {
+    she: '关于你的记忆笔记',
+    he: '关于你的记忆笔记',
+    it: '关于你的记忆笔记',
+  },
+  wroteThese: {
+    she: '当你在交流中让她记住某些事情时，她会自行记录这些笔记。你可以阅读或清除它们——但不能手动修改，因为被篡改的笔记便不再是她的真实记忆。',
+    he: '当你在交流中让他记住某些事情时，他会自行记录这些笔记。你可以阅读或清除它们——但不能手动修改，因为被篡改的笔记便不再是他的真实记忆。',
+    it: '当你在交流中让它记住某些事情时，它会自行记录这些笔记。你可以阅读或清除它们——但不能手动修改，因为被篡改的笔记便不再是它的真实记忆。',
+  },
+  eraseAsks: '删除前会确认一次，并可先导出副本',
+  expressions: {
+    she: '表情管理',
+    he: '表情管理',
+    it: '表情管理',
+  },
+  seeingAndPermitting: {
+    she: '此处每个表情均按其在桌面的实际比例绘制。预览表情与允许使用是分开的——方块展示外观，开关决定她是否可以在会话中切换该表情。',
+    he: '此处每个表情均按其在桌面的实际比例绘制。预览表情与允许使用是分开的——方块展示外观，开关决定他是否可以在会话中切换该表情。',
+    it: '此处每个表情均按其在桌面的实际比例绘制。预览表情与允许使用是分开的——方块展示外观，开关决定它是否可以在会话中切换该表情。',
+  },
+  mayBeEmpty: {
+    she: '禁用某个表情不会隐藏对应方块——你随时可以查看。完全清空允许列表也是合法的：关闭全部 8 个表情，她将保持默认表情不再变换。',
+    he: '禁用某个表情不会隐藏对应方块——你随时可以查看。完全清空允许列表也是合法的：关闭全部 8 个表情，他将保持默认表情不再变换。',
+    it: '禁用某个表情不会隐藏对应方块——你随时可以查看。完全清空允许列表也是合法的：关闭全部 8 个表情，它将保持默认表情不再变换。',
+  },
+  eraseKept: {
+    she: '清空她记住的所有笔记…',
+    he: '清空他记住的所有笔记…',
+    it: '清空它记住的所有笔记…',
+  },
+  noNotes: {
+    she: '她目前还没有记录关于你的任何笔记。',
+    he: '他目前还没有记录关于你的任何笔记。',
+    it: '它目前还没有记录关于你的任何笔记。',
+  },
+  restore: {
+    she: '恢复出厂内置角色…',
+    he: '恢复出厂内置角色…',
+    it: '恢复出厂内置角色…',
+  },
+  restoreOnly: {
+    she: '仅限内置预设角色——内置角色没有独立文件可删除',
+    he: '仅限内置预设角色——内置角色没有独立文件可删除',
+    it: '仅限内置预设角色——内置角色没有独立文件可删除',
+  },
+  themeNote: {
+    she: '高亮框选的是当前使用的形象主题。8 种主题切换仅改变角色本身，当前窗口保持不变。',
+    he: '高亮框选的是当前使用的形象主题。8 种主题切换仅改变角色本身，当前窗口保持不变。',
+    it: '高亮框选的是当前使用的形象主题。8 种主题切换仅改变角色本身，当前窗口保持不变。',
+  },
+  ownHue: {
+    she: '使用其自带专属色调；未选用 8 款内置预设。',
+    he: '使用其自带专属色调；未选用 8 款内置预设。',
+    it: '使用其自带专属色调；未选用 8 款内置预设。',
+  },
+  instruction: { she: '提示词指令', he: '提示词指令', it: '提示词指令' },
+  notAsYouType: {
+    she: '不会随键入实时保存。点击保存后将在下次唤醒时生效。',
+    he: '不会随键入实时保存。点击保存后将在下次唤醒时生效。',
+    it: '不会随键入实时保存。点击保存后将在下次唤醒时生效。',
+  },
+  whileSaving: '保存期间输入框与按钮将暂时禁用以确保数据一致性。',
+  assembled: {
+    she: '在此编写提示词；“生成提示词”展示结合了角色设定与记忆后的完整发送内容；“工具列表”为不可编辑的内置工具描述。保存后将在下次唤醒生效。',
+    he: '在此编写提示词；“生成提示词”展示结合了角色设定与记忆后的完整发送内容；“工具列表”为不可编辑的内置工具描述。保存后将在下次唤醒生效。',
+    it: '在此编写提示词；“生成提示词”展示结合了角色设定与记忆后的完整发送内容；“工具列表”为不可编辑的内置工具描述。保存后将在下次唤醒生效。',
+  },
+} as const satisfies Readonly<Record<keyof typeof SAYS_EN, ByPronoun | string>>
+
+export const SAYS = new Proxy(SAYS_EN, {
+  get(target, prop, receiver) {
+    if (getLanguage() === 'zh' && prop in SAYS_ZH) {
+      return (SAYS_ZH as Record<string, ByPronoun | string>)[prop as string]
+    }
+    return Reflect.get(target, prop, receiver)
+  },
+})
+
+export function localizeTitle(title: string): string {
+  if (getLanguage() !== 'zh') return title
+  const exact: Record<string, string> = {
+    'Who she is': '角色设定',
+    'Who he is': '角色设定',
+    'What it is': '角色设定',
+    Appearance: '外观设定',
+    'Her size': '角色尺寸',
+    'His size': '角色尺寸',
+    'Its size': '角色尺寸',
+    Voice: '音色设定',
+    'Speech bubble': '对话气泡',
+    Conversations: '对话记录',
+    Face: '表情状态',
+    'This character': '当前角色',
+    'System prompt': '系统提示词',
+    Notes: '角色笔记',
+    Permits: '权限与能力',
+    'What she may do': '赋予的权限',
+    'What he may do': '赋予的权限',
+    'What it may do': '赋予的权限',
+    'What you permit': '权限设置',
+    'Languages she listens for': '倾听语言偏好',
+    'Languages he listens for': '倾听语言偏好',
+    'Languages it listens for': '倾听语言偏好',
+    'Let anyone cut her off': '允许随时打断说话',
+    'Let anyone cut him off': '允许随时打断说话',
+    'Let anyone cut it off': '允许随时打断说话',
+    'How soon she answers': '接话应答速度',
+    'How soon he answers': '接话应答速度',
+    'How soon it answers': '接话应答速度',
+    Workspace: '工作目录',
+    'Codex profile': 'Codex 配置文件',
+    'Web search': '网络搜索',
+    Codex: 'Codex 命令行工具',
+    Prompts: '提示词指令',
+    Halo: '光环显示',
+    'Shoulder button': '悬浮气泡按钮',
+    'Floating chip': '悬浮气泡',
+    Rest: '休眠设置',
+    Language: '界面语言',
+    'Storage on disk': '本地存储',
+    'On disk': '本地存储',
+    'Every conversation, every character': '清除所有角色的对话记录',
+    Build: '版本信息',
+    Links: '相关链接',
+    'Author, source and website': '作者、源码与官网',
+    Updates: '检查更新',
+    'What it is built on': '技术栈构建',
+    Keys: '快捷键',
+    'Keyboard shortcuts': '快捷键',
+  }
+  return exact[title] ?? title
+}
+
+export function localizeHint(hint: string): string {
+  if (getLanguage() !== 'zh' || !hint) return hint
+  const exact: Record<string, string> = {
+    'Press any of them to hear it.': '点击任一音色即可试听。',
+    'where words float': '文字浮现方位',
+    'as her face asks for': '遵循形象默认尺寸',
+    'as his face asks for': '遵循形象默认尺寸',
+    'as its face asks for': '遵循形象默认尺寸',
+    'the document shipped with the app': '应用内置预设文件',
+    'saved to this character’s own file': '已保存至独立文件',
+    "saved to this character's own file": '已保存至独立文件',
+    'the resting face, and the fallback': '常态与回退表情',
+    'a character is a folder · deleting one takes its memory':
+      '角色即文件夹 · 删除角色将一并删除其记忆',
+    'ten · lands on her next wake': '10 种音色 · 下次唤醒时生效',
+    'ten · lands on his next wake': '10 种音色 · 下次唤醒时生效',
+    'ten · lands on its next wake': '10 种音色 · 下次唤醒时生效',
+    'lands on her next wake': '下次唤醒时生效',
+    'lands on his next wake': '下次唤醒时生效',
+    'lands on its next wake': '下次唤醒时生效',
+    'built-in · shipped with Orbis': '内置形象 · 随 Orbis 附带',
+    'up to date': '已是最新版本',
+    'the shipped face': '应用内置形象',
+    'nobody has chosen one': '未自定义，使用默认目录',
+    'data, not instructions': '数据，非指令',
+    'her name': '角色名称',
+    'his name': '角色名称',
+    'its name': '角色名称',
+  }
+  if (exact[hint] !== undefined) return exact[hint]
+
+  const mChosen = hint.match(/^(\d+)\s+chosen\s*·\s*(\d+)\s+at\s+most$/)
+  if (mChosen) return `已选 ${mChosen[1]} · 最多 ${mChosen[2]} 个`
+
+  const mAllowed = hint.match(/^(\d+)\s+of\s+(\d+)\s+allowed$/)
+  if (mAllowed) return `允许使用 ${mAllowed[1]}/${mAllowed[2]} 个`
+
+  const mDrawn = hint.match(/^(\d+)\s+drawn\s*·\s*(\d+)\s+of\s+(\d+)\s+allowed$/)
+  if (mDrawn) return `已绘制 ${mDrawn[1]} 个 · 允许使用 ${mDrawn[2]}/${mDrawn[3]} 个`
+
+  const mTextsNone = hint.match(/^(\d+)\s+texts\s*·\s*none\s+changed\s+from\s+as-shipped$/)
+  if (mTextsNone) return `${mTextsNone[1]} 处提示词 · 均与出厂一致`
+
+  const mTextsChanged = hint.match(/^(\d+)\s+texts\s*·\s*(\d+)\s+changed\s+from\s+as-shipped$/)
+  if (mTextsChanged) return `${mTextsChanged[1]} 处提示词 · ${mTextsChanged[2]} 处已修改`
+
+  return hint
+}
+
+export function localizeLabel(label: string): string {
+  if (getLanguage() !== 'zh') return label
+  const exact: Record<string, string> = {
+    'Her name': '角色名称',
+    'His name': '角色名称',
+    'Its name': '角色名称',
+    'Calls you': '对你的称呼',
+    Pronoun: '人称代词',
+    'Which side': '显示方位',
+    'Show it': '说话时显示气泡',
+    'Save new conversations': '保存对话记录',
+    Avatar: '形象文件',
+    Scale: '缩放比例',
+    Resting: '常态表情',
+    Theme: '形象主题',
+    Halo: '光环显示',
+    'Shoulder button': '悬浮气泡按钮',
+    Rest: '休眠设置',
+    Language: '界面语言',
+  }
+  return exact[label] ?? label
+}
+
+export function localizeNote(note: string): string {
+  if (getLanguage() !== 'zh') return note
+  const exact: Record<string, string> = {
+    'often left empty': '通常留空',
+    'she | he | it': '她 | 他 | 它',
+    'no file · shipped with the app': '内置预设 · 随应用提供',
+    'the base expression': '基础表情',
+    'built-in · shipped with Orbis': '内置形象 · 随 Orbis 附带',
+    'custom file': '自定义文件',
+    'saved to disk': '已保存至磁盘',
+    'a character is a folder · deleting one takes its memory':
+      '角色即文件夹 · 删除角色将一并删除其记忆',
+  }
+  return exact[note] ?? note
+}

@@ -440,3 +440,11 @@ export const SIDE_NAMES: Readonly<Record<BubbleSide, ByPronoun>> = {
   left: { she: 'To her left', he: 'To his left', it: 'To its left' },
   right: { she: 'To her right', he: 'To his right', it: 'To its right' },
 }
+
+export const SIDE_NAMES_ZH: Readonly<Record<BubbleSide, ByPronoun>> = {
+  auto: { she: '自动适应（有空位处）', he: '自动适应（有空位处）', it: '自动适应（有空位处）' },
+  above: { she: '在她上方', he: '在他上方', it: '在它上方' },
+  below: { she: '在她下方', he: '在他下方', it: '在它下方' },
+  left: { she: '在她左侧', he: '在他左侧', it: '在它左侧' },
+  right: { she: '在她右侧', he: '在他右侧', it: '在它右侧' },
+}
