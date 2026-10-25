@@ -1,5 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'electron-vite'
+import react from '@vitejs/plugin-react'
+import { pdfjsAssets, foliatePdfStub } from './scripts/vite/paper'
 
 /**
  * Path aliases, kept in step with both tsconfigs rather than with today's
@@ -29,6 +31,12 @@ export default defineConfig({
   // regularity is what lets one rule locate a window's document instead of a
   // special case per window — which matters as soon as there is a second one.
   renderer: {
+    plugins: [
+      react(),
+      pdfjsAssets(fileURLToPath(new URL('./vendor/pdfjs/', import.meta.url))),
+      foliatePdfStub(),
+    ],
+    optimizeDeps: { exclude: ['foliate-js'] },
     root: fileURLToPath(new URL('./src/renderer', import.meta.url)),
     resolve: { alias },
     build: {
@@ -37,6 +45,8 @@ export default defineConfig({
           companion: fileURLToPath(new URL('./src/renderer/companion/index.html', import.meta.url)),
           history: fileURLToPath(new URL('./src/renderer/history/index.html', import.meta.url)),
           reading: fileURLToPath(new URL('./src/renderer/reading/index.html', import.meta.url)),
+          // Compile the migrated reader now, without replacing any existing window.
+          paper: fileURLToPath(new URL('./src/renderer/paper/index.html', import.meta.url)),
         },
       },
     },

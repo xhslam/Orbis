@@ -4,6 +4,7 @@ import { app, BrowserWindow, nativeImage, nativeTheme, screen } from 'electron'
 import { FEET_FROM_TOP, WINDOW_H, WINDOW_W, fullPad, originHolding } from '@shared/avatar-layout'
 import { containToWorkArea, KEEP_ON_SCREEN } from './drag'
 import { letDevToolsInspect } from './inspect'
+import { registerPaperWindow } from './paper/ipc'
 import { shippedPath } from './shipped'
 
 /**
@@ -720,6 +721,7 @@ export function showHistoryWindow(): BrowserWindow {
     skipTaskbar: false,
     webPreferences: bridgeFor('history'),
   })
+  registerPaperWindow(window, 'history')
   history = window
   /*
     Written when it MOVES, not when it closes.
@@ -820,6 +822,7 @@ export function showReadingWindow(): BrowserWindow {
     ...(taskbarIcon === null ? {} : { icon: taskbarIcon }),
   })
 
+  registerPaperWindow(window, 'reading')
   readingWindow = window
   window.on('closed', () => {
     readingWindow = null
