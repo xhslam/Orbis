@@ -1,6 +1,7 @@
 import { type Answers } from '@shared/answers'
 import { type Link } from '@shared/links'
 import { contextBridge, ipcRenderer } from 'electron'
+import { createPaperBridge } from './paper'
 import {
   isCompanionChannel,
   isReadingChannel,
@@ -351,6 +352,11 @@ const settings: MochiSettingsApi = {
       guardSettings('settings:codex-recheck'),
     )) as Answers['settings:codex-recheck']
   },
+}
+
+// The Paper bridge never belongs to the companion or to an embedded book frame.
+if ((role === 'reading' || role === 'history') && process.isMainFrame) {
+  contextBridge.exposeInMainWorld('orbisPaper', createPaperBridge(ipcRenderer))
 }
 
 // One of the three, never more than one. The conversations window has no

@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
@@ -21,9 +23,10 @@
     // in one and missing from another typechecks cleanly and fails at bundle
     // time, which is a worse configuration than having no alias at all.
     "paths": {
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["src/renderer/**/*", "src/shared/**/*"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src/renderer/**/*", "src/shared/**/*", "src/kernel/**/*", "src/paper-env.d.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

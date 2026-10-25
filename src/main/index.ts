@@ -198,6 +198,7 @@ import type { Turn } from './store/turn-row'
 import { createCompanionWindow, showHistoryWindow, showReadingWindow } from './window'
 import { createReadingStore } from './reading/store'
 import { registerReadingIpc } from './reading/ipc'
+import { registerPaperIpc } from './paper/ipc'
 import { checkCodexNow, codexForWindow } from './codex/ready'
 import { codexPathNow } from './codex/ready'
 import { carryGrantsForward } from './store/grants'
@@ -4333,6 +4334,7 @@ const startup = app.whenReady().then(
       default the moment one opens if nothing has set one.
     */
     installMenu()
+    registerPaperIpc()
 
     /*
       THE OTHER HALF OF THE RECONNECT, and the one no timer can do for itself.

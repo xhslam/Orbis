@@ -15,6 +15,8 @@ export default defineConfig({
     // stub — a fake DOM would only make the rig look tested.
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Paper has its own React/jsdom setup; pnpm test runs both configurations.
+    exclude: ['**/node_modules/**', 'src/kernel/**', 'src/hosts/**'],
     /*
      * 30s, not Vitest's 5s, and the reason is that the default bound here can
      * only ever be wrong.

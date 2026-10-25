@@ -43,3 +43,6 @@ dev-docs/
 .vmark/
 
 release/
+
+# Reproducible pdf.js runtime assets (pnpm pdfjs:sync).
+/vendor/pdfjs/
