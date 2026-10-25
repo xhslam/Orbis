@@ -36,6 +36,8 @@ function getNavLabel(id: string, defaultLabel: string): string {
       return '提示词指令'
     case 'on-screen':
       return '界面与显示'
+    case 'reading':
+      return '阅读与复述'
     case 'keys':
       return '快捷键'
     case 'storage':

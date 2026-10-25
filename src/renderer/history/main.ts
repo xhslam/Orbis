@@ -569,14 +569,20 @@ function renderPermits(): void {
       ),
       marginBlock(
         copyFor(SAYS.permitsWithheldHead, saying()),
-        marginFacts(`${String(withheld)} of ${String(grants.length)}`),
+        marginFacts(
+          getLanguage() === 'zh'
+            ? `已禁用 ${String(withheld)}/${String(grants.length)}`
+            : `${String(withheld)} of ${String(grants.length)}`,
+        ),
       ),
       marginBlock(
         forPronoun(SAYS.permitsWhenHead, saying()),
         marginFacts(
           lines === null
             ? copyFor(SAYS.permitsWhen, saying())
-            : `${String(lines)} line${lines === 1 ? '' : 's'}`,
+            : getLanguage() === 'zh'
+              ? `${String(lines)} 行`
+              : `${String(lines)} line${lines === 1 ? '' : 's'}`,
         ),
       ),
     ),
@@ -595,7 +601,9 @@ function renderPermits(): void {
  */
 function wornName(): string | null {
   const worn = shelf?.characters.find((one) => one.id === shelf?.wornId)
-  return worn === undefined ? null : `${worn.name} · the live one`
+  return worn === undefined
+    ? null
+    : `${worn.name} · ${getLanguage() === 'zh' ? '当前佩戴' : 'the live one'}`
 }
 
 /**
@@ -697,9 +705,92 @@ function renderHerMargin(): void {
     return
   }
   const stored = worn?.source ?? null
+  const resting = shelf.resting ?? { asleep: false, hidden: false }
+
+  let stateText: string
+  if (resting.hidden) {
+    stateText = resting.asleep
+      ? copyFor(SAYS.marginHiddenAsleep, her)
+      : copyFor(SAYS.marginHiddenActive, her)
+  } else {
+    stateText = resting.asleep
+      ? copyFor(SAYS.marginShownAsleep, her)
+      : copyFor(SAYS.marginAwake, her)
+  }
+
+  const actions = element('div', 'margin-actions')
+
+  const changeResting = async (change: { asleep?: boolean; hidden?: boolean }): Promise<void> => {
+    try {
+      await window.mochiHistory.resting(change)
+      await readShelf()
+      renderHerMargin()
+    } catch (error: unknown) {
+      say(String(error), true)
+    }
+  }
+
+  if (resting.hidden && resting.asleep) {
+    const wakeAndShowBtn = element('button', 'btn primary', copyFor(SAYS.wakeAndShow, her))
+    wakeAndShowBtn.type = 'button'
+    wakeAndShowBtn.onclick = () => {
+      wakeAndShowBtn.disabled = true
+      void changeResting({ asleep: false, hidden: false })
+    }
+    const showBtn = element('button', 'btn', copyFor(SAYS.showOnDesktop, her))
+    showBtn.type = 'button'
+    showBtn.onclick = () => {
+      showBtn.disabled = true
+      void changeResting({ hidden: false })
+    }
+    actions.append(wakeAndShowBtn, showBtn)
+  } else if (resting.hidden && !resting.asleep) {
+    const showBtn = element('button', 'btn primary', copyFor(SAYS.showOnDesktop, her))
+    showBtn.type = 'button'
+    showBtn.onclick = () => {
+      showBtn.disabled = true
+      void changeResting({ hidden: false })
+    }
+    const sleepBtn = element('button', 'btn', copyFor(SAYS.putToSleep, her))
+    sleepBtn.type = 'button'
+    sleepBtn.onclick = () => {
+      sleepBtn.disabled = true
+      void changeResting({ asleep: true })
+    }
+    actions.append(showBtn, sleepBtn)
+  } else if (!resting.hidden && resting.asleep) {
+    const wakeBtn = element('button', 'btn primary', copyFor(SAYS.wakeOnly, her))
+    wakeBtn.type = 'button'
+    wakeBtn.onclick = () => {
+      wakeBtn.disabled = true
+      void changeResting({ asleep: false })
+    }
+    const hideBtn = element('button', 'btn', copyFor(SAYS.hideOnDesktop, her))
+    hideBtn.type = 'button'
+    hideBtn.onclick = () => {
+      hideBtn.disabled = true
+      void changeResting({ hidden: true })
+    }
+    actions.append(wakeBtn, hideBtn)
+  } else {
+    const sleepBtn = element('button', 'btn', copyFor(SAYS.putToSleep, her))
+    sleepBtn.type = 'button'
+    sleepBtn.onclick = () => {
+      sleepBtn.disabled = true
+      void changeResting({ asleep: true })
+    }
+    const hideBtn = element('button', 'btn', copyFor(SAYS.hideOnDesktop, her))
+    hideBtn.type = 'button'
+    hideBtn.onclick = () => {
+      hideBtn.disabled = true
+      void changeResting({ hidden: true })
+    }
+    actions.append(sleepBtn, hideBtn)
+  }
+
   marginHersEl.replaceChildren(
     ...marginColumn(
-      marginBlock(copyFor(SAYS.marginNow, her), marginFacts(copyFor(SAYS.marginAsleep, her))),
+      marginBlock(copyFor(SAYS.marginNow, her), marginFacts(stateText), actions),
       marginBlock(
         copyFor(SAYS.marginLastAwake, her),
         marginFacts(lastAwakeOf() ?? copyFor(SAYS.marginNeverAwake, her)),
@@ -712,7 +803,11 @@ function renderHerMargin(): void {
       ),
       marginBlock(
         forPronoun(SAYS.marginFacesHead, her),
-        marginFacts(`${String(worn?.faces.length ?? 0)} of 8 allowed`),
+        marginFacts(
+          getLanguage() === 'zh'
+            ? `允许使用 ${String(worn?.faces.length ?? 0)}/8 个`
+            : `${String(worn?.faces.length ?? 0)} of 8 allowed`,
+        ),
       ),
     ),
   )
@@ -739,6 +834,7 @@ const PROMPT_STATE_SAYS: Readonly<Record<PromptState, ByPronoun | string>> = {
  * question you answer by reading past the other three.
  */
 function deeperMargin(words: Pronoun, worn: ShelfCharacter | undefined): readonly HTMLElement[] {
+  const isZh = getLanguage() === 'zh'
   if (deeperInto === 'notes') {
     const text = shelf?.note.text ?? ''
     // Lines, not characters: an empty note is nought lines, and `''.split` is
@@ -748,7 +844,7 @@ function deeperMargin(words: Pronoun, worn: ShelfCharacter | undefined): readonl
       marginBlock(copyFor(SAYS.keptHead, words), marginFacts(String(kept))),
       marginBlock(
         copyFor(SAYS.keptSizeHead, words),
-        marginFacts(`${String(text.length)} characters`),
+        marginFacts(isZh ? `${String(text.length)} 个字符` : `${String(text.length)} characters`),
       ),
       marginBlock(
         copyFor(SAYS.keptWhereHead, words),
@@ -783,7 +879,11 @@ function deeperMargin(words: Pronoun, worn: ShelfCharacter | undefined): readonl
       marginBlock(copyFor(SAYS.drawnHead, words), marginFacts(String(EMOTIONS.length))),
       marginBlock(
         copyFor(SAYS.allowedHead, words),
-        marginFacts(`${String(worn?.faces.length ?? 0)} of ${String(EMOTIONS.length)}`),
+        marginFacts(
+          isZh
+            ? `已允许 ${String(worn?.faces.length ?? 0)}/${String(EMOTIONS.length)}`
+            : `${String(worn?.faces.length ?? 0)} of ${String(EMOTIONS.length)}`,
+        ),
       ),
       marginBlock(
         copyFor(SAYS.wearingHead, words),
@@ -795,7 +895,11 @@ function deeperMargin(words: Pronoun, worn: ShelfCharacter | undefined): readonl
           separate window and the shelf carries what is stored, not what is on
           her face this second.
         */
-        marginFacts(`${EMOTIONS[0]} · ${copyFor(SAYS.marginAsleep, words)}`),
+        marginFacts(
+          isZh
+            ? `平静 · ${copyFor(SAYS.marginAsleep, words)}`
+            : `${EMOTIONS[0]} · ${copyFor(SAYS.marginAsleep, words)}`,
+        ),
       ),
       marginBlock(
         copyFor(SAYS.drawnAtHead, words),
@@ -817,7 +921,7 @@ function deeperMargin(words: Pronoun, worn: ShelfCharacter | undefined): readonl
     ),
     marginBlock(
       forPronoun(SAYS.sentAtWakeHead, words),
-      marginFacts(`${String(lines)} line${lines === 1 ? '' : 's'}`),
+      marginFacts(isZh ? `${String(lines)} 行` : `${String(lines)} line${lines === 1 ? '' : 's'}`),
     ),
     marginBlock(
       copyFor(SAYS.promptWhereHead, words),
@@ -1122,6 +1226,13 @@ function renderPlaces(): void {
       updateI18nSurfaces()
     })
     updateI18nSurfaces()
+    try {
+      const initLang = getLanguage()
+      const s = window.mochiSettings ?? window.orbisSettings
+      void s?.screen({ language: initLang })
+    } catch {
+      // ignore
+    }
   }
   for (const [id, button] of views) {
     const here = id === place
@@ -1189,6 +1300,11 @@ function updateI18nSurfaces(): void {
   renderCards()
   renderPlaces()
   if (place === 'machine') renderMachine()
+  if (place === 'cast') {
+    openCharacter()
+  } else if (place === 'permits') {
+    renderPermits()
+  }
   if (readingApp !== null) void readingApp.refresh()
 }
 
@@ -1382,6 +1498,9 @@ async function readShelf(): Promise<void> {
    */
   const unreadable = applyAccent(document.documentElement, view.face)
   renderCards()
+  if (showingCharacter) {
+    renderHerMargin()
+  }
   if (unreadable.length > 0) {
     say(`That character's colour is not readable, so the built-in is used.`, true)
   }
@@ -2418,6 +2537,7 @@ function showTroubles(page: HTMLElement): void {
  * there was something to show.
  */
 function readProblemCount(): void {
+  void readShelf()
   void window.mochiHistory
     .problems()
     .then((problems) => {

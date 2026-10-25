@@ -34,6 +34,7 @@ import { SAYS } from '../panes-says'
 import { forPronoun } from '@shared/pronoun'
 import { canSave, lengthNote } from './prompt-edit'
 import { type SettingsPrompt } from '@shared/ipc'
+import { getLanguage } from '../../i18n'
 
 /**
  * One field per catalogued prompt, built FROM the prompt. See `Field`.
@@ -95,14 +96,17 @@ export const PROMPTS: Pane = {
       nothing on the page answered it.
     */
     const changed = view.prompts.filter((one) => one.edited).length
+    const isZh = getLanguage() === 'zh'
     const blocks: Node[] = [
       sectionHead(
         forPronoun(SAYS.promptsHead, view.pronoun),
-        `${String(view.prompts.length)} texts \u00b7 ${
-          changed === 0
-            ? 'none changed from as-shipped'
-            : `${String(changed)} changed from as-shipped`
-        }`,
+        isZh
+          ? `${String(view.prompts.length)} 条提示词 · ${changed === 0 ? '均与出厂预设一致' : `${String(changed)} 条已修改`}`
+          : `${String(view.prompts.length)} texts \u00b7 ${
+              changed === 0
+                ? 'none changed from as-shipped'
+                : `${String(changed)} changed from as-shipped`
+            }`,
       ),
     ]
     for (const one of view.prompts) {
@@ -120,7 +124,7 @@ export const PROMPTS: Pane = {
       // B3's word for it. "edited" describes what somebody did; "changed" is a
       // property of the text, which is what the badge is claiming — and it is
       // the word the count above uses, so the two agree.
-      if (one.edited) head.append(element('span', 'meta', 'changed'))
+      if (one.edited) head.append(element('span', 'meta', isZh ? '已修改' : 'changed'))
       nodes.push(head)
       nodes.push(element('p', 'note', one.purpose))
 
@@ -154,7 +158,11 @@ export const PROMPTS: Pane = {
       const sayLength = (value: string): void => {
         const note = lengthNote(value, one.limit)
         overLong.hidden = note === null
-        if (note !== null) overLong.textContent = note
+        if (note !== null) {
+          overLong.textContent = isZh
+            ? `当前已输入 ${String(value.length)} 字符，最多允许 ${String(one.limit)} 字符。此提示词会在每次会话时发送。`
+            : note
+        }
       }
       sayLength(one.text)
       nodes.push(overLong)
@@ -173,12 +181,14 @@ export const PROMPTS: Pane = {
             // exist. `stylesheets.test.ts` now walks these files, which is what
             // turned it up.
             'note bad',
-            `This no longer mentions ${one.missing.join(', ')}, which the code that reads it depends on.`,
+            isZh
+              ? `此提示词不再包含 ${one.missing.join(', ')}，读取它的底层代码可能依赖此内容。`
+              : `This no longer mentions ${one.missing.join(', ')}, which the code that reads it depends on.`,
           ),
         )
       }
 
-      const save = element('button', 'btn primary', 'Save')
+      const save = element('button', 'btn primary', isZh ? '保存' : 'Save')
       save.type = 'button'
       /*
         "Put back as shipped", not "Reset" — B3's wording and the accurate one.
@@ -188,7 +198,7 @@ export const PROMPTS: Pane = {
         clearing a field, and the one thing somebody must not think is that it
         empties the text.
       */
-      const reset = element('button', 'btn', 'Put back as shipped')
+      const reset = element('button', 'btn', isZh ? '恢复出厂预设' : 'Put back as shipped')
       reset.type = 'button'
       /*
         The rule lives in `rules/editing`, which holds and tests the whole of

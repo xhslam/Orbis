@@ -11,6 +11,7 @@ import { element } from '../../element'
 import { acknowledged } from '../../rules/acknowledged'
 import { type Emotion } from '@shared/avatar'
 import { type NoteAction, type PersonaAction, type PersonaChange } from '@shared/ipc'
+import { localizeTitle, localizeHint, localizeLabel, localizeNote } from '../shelf-says'
 export interface ShelfHandlers {
   readonly wear: (id: string) => void
   /**
@@ -48,7 +49,10 @@ export interface ShelfHandlers {
  */
 export function sectionHead(title: string, hint: string): HTMLElement {
   const head = element('div', 'section-head')
-  head.append(element('h3', undefined, title), element('span', 'hint', hint))
+  head.append(
+    element('h3', undefined, localizeTitle(title)),
+    element('span', 'hint', localizeHint(hint)),
+  )
   return head
 }
 
@@ -103,7 +107,7 @@ export function settingRow(
   note?: string,
 ): HTMLElement {
   const row = element('div', 'setting')
-  const word = element('label', 'setting-of', label)
+  const word = element('label', 'setting-of', localizeLabel(label))
   const id = `setting-${label.toLowerCase().replace(/[^a-z]+/g, '-')}`
   /*
     ANY labelable control, not just an input.
@@ -131,7 +135,7 @@ export function settingRow(
     control.setAttribute('aria-labelledby', id)
   }
   row.append(word, control)
-  if (note !== undefined) row.append(element('span', 'setting-fact', note))
+  if (note !== undefined) row.append(element('span', 'setting-fact', localizeNote(note)))
   return row
 }
 

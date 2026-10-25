@@ -198,6 +198,9 @@ export interface AvatarBackend {
   /** Idle animation: breathing, blinking, micro-motion. All of it stops when off. */
   setIdle(on: boolean): void
 
+  /** Toggle idle micro-drift (lean/shift/lift); breath, blink and clips are unchanged. */
+  setDrift(on: boolean): void
+
   /**
    * Is this point on the avatar? CSS pixels from the window's top-left.
    *

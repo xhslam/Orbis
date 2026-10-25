@@ -15,6 +15,7 @@ import { type ShelfCharacter, type ShelfView } from '@shared/history-window'
 import { forPronoun } from '@shared/pronoun'
 import { anchor } from '../../field'
 import { HER_FIELDS } from './fields'
+import { getLanguage } from '../../i18n'
 
 /*
   The ten samples, resolved by the bundler rather than by string arithmetic.
@@ -105,7 +106,11 @@ export function voiceSection(
     What the row does need said is the affordance, because a name that plays
     when pressed is not something a pill announces.
   */
-  const how = element('p', 'note', 'Press any of them to hear it.')
+  const how = element(
+    'p',
+    'note',
+    getLanguage() === 'zh' ? '点击任一音色即可试听。' : 'Press any of them to hear it.',
+  )
 
   /*
     PRESSING A VOICE PLAYS IT, as well as choosing it.

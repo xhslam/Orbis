@@ -11,6 +11,7 @@ import { type ShelfHandlers, section } from './row'
 import { type ShelfCharacter, type ShelfView } from '@shared/history-window'
 import { anchor } from '../../field'
 import { HER_FIELDS } from './fields'
+import { getLanguage } from '../../i18n'
 /**
  * Which avatar file she wears.
  *
@@ -59,7 +60,14 @@ export function fileSection(
         the only one stored as `null` — so the split is exact rather than a
         guess about naming.
       */
-      label: one.id === null ? 'Built-in — ships with Mochi' : `${one.id} — your file`,
+      label:
+        getLanguage() === 'zh'
+          ? one.id === null
+            ? '内置形象 — 随 Orbis 附带'
+            : `${one.id} — 自定义文件`
+          : one.id === null
+            ? 'Built-in — ships with Mochi'
+            : `${one.id} — your file`,
     })),
   ]) {
     const option = document.createElement('option')
@@ -76,6 +84,10 @@ export function fileSection(
 
 /** Where her face actually resolved to, not where it was asked to look. */
 function resolvedFace(view: ShelfView, worn: ShelfCharacter): string {
+  if (getLanguage() === 'zh') {
+    if (view.faceSource !== null) return `正在读取 ${view.faceSource}`
+    return worn.avatarId === null ? '应用内置形象' : `无法读取 ${worn.avatarId}`
+  }
   if (view.faceSource !== null) return `reading ${view.faceSource}`
   // A named avatar that resolved to nothing fell back to the built-in, and
   // saying so is the whole point — "the app ignored my file" is the least

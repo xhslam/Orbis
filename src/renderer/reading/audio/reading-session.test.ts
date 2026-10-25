@@ -11,6 +11,9 @@ interface SessionConfigPayload {
           readonly create_response: boolean
           readonly interrupt_response: boolean
         }
+        readonly transcription?: {
+          readonly model: string
+        }
       }
     }
   }
@@ -25,6 +28,7 @@ describe('Reading voice session configuration', () => {
     const session = (config as SessionConfigPayload).session
     expect(session.audio.input.turn_detection.create_response).toBe(false)
     expect(session.audio.input.turn_detection.interrupt_response).toBe(false)
+    expect(session.audio.input.transcription?.model).toBe('gpt-transcribe')
     expect(session.instructions).toBe('Review user retelling.')
     expect(session.audio.output.voice).toBe('ballad')
   })
@@ -37,5 +41,6 @@ describe('Reading voice session configuration', () => {
 
     const session = (config as SessionConfigPayload).session
     expect(session.audio.output.voice).toBe('alloy')
+    expect(session.audio.input.transcription?.model).toBe('gpt-transcribe')
   })
 })

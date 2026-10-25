@@ -197,6 +197,9 @@ export class MochiAvatar implements AvatarBackend {
    * movement, not for no feedback.
    */
   private reducedMotion = false
+
+  /** Continuous lean/shift/lift can stop while breathing and blinking continue. */
+  private drifting = true
   private emotion: EmotionSignal = NEUTRAL_SIGNAL
   private emotionExpiresAt: number | null = null
   /** A hold requested before the first frame, when there was no clock to add it to. */
@@ -403,6 +406,14 @@ export class MochiAvatar implements AvatarBackend {
     // Re-armed rather than resumed, for the reason `setIdle` gives: seeding the
     // blink schedule from a stale timestamp puts the first blink in the past.
     if (!on) this.idleSeededAt = null
+  }
+
+  /**
+   * Turn idle micro-drift on or off without changing breath, blink, or motion
+   * clips. `setReducedMotion` remains the stronger accessibility preference.
+   */
+  setDrift(on: boolean): void {
+    this.drifting = on
   }
 
   /**
@@ -613,7 +624,8 @@ export class MochiAvatar implements AvatarBackend {
       her still, and a still she can be measured against.
     */
     const stirring = this.idle && !this.reducedMotion
-    const drift = stirring ? driftAt(now, this.asleep ? ASLEEP_DRIFT : 1) : NO_DRIFT
+    const drift =
+      stirring && this.drifting ? driftAt(now, this.asleep ? ASLEEP_DRIFT : 1) : NO_DRIFT
 
     const shutEyes = this.asleep && !this.speaking
     const pose = shutEyes

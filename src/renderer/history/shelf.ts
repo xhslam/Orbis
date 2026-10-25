@@ -14,6 +14,7 @@ import { sizeSection } from './sheet/size'
 import { wakeCount } from './wake-count'
 import { anchor } from '../field'
 import { HER_FIELDS } from './sheet/fields'
+import { getLanguage } from '../i18n'
 
 /**
  * The characters half of the shelf.
@@ -93,7 +94,8 @@ export function characterSheet(view: ShelfView, handlers: ShelfHandlers): HTMLEl
   const worn = view.characters.find((one) => one.id === view.wornId)
   const page = element('div', 'sheet')
   if (worn === undefined) {
-    page.append(element('p', 'empty', 'No characters loaded.'))
+    const isZh = getLanguage() === 'zh'
+    page.append(element('p', 'empty', isZh ? '暂无角色。' : 'No characters loaded.'))
     return page
   }
 
@@ -207,11 +209,12 @@ function wakeTabs(parts: {
   let showing: WakePane = 'sent'
 
   const draw = (): void => {
+    const isZh = getLanguage() === 'zh'
     strip.replaceChildren()
     for (const [id, label] of [
-      ['sent', 'Sent'],
-      ['tools', 'Tools'],
-      ['write', 'Write'],
+      ['sent', isZh ? '生成提示词' : 'Sent'],
+      ['tools', isZh ? '工具列表' : 'Tools'],
+      ['write', isZh ? '编辑' : 'Write'],
     ] as const) {
       const button = element('button', undefined, label)
       button.type = 'button'
@@ -264,6 +267,7 @@ export function assembledPanel(
     count,
   )
 
+  const isZh = getLanguage() === 'zh'
   const editor = element('textarea', 'wake-edit')
   editor.value = view.prompt.text
   editor.spellcheck = false
@@ -271,7 +275,9 @@ export function assembledPanel(
   // What it is FOR, in the window rather than in the file. Markdown has no
   // comment a model cannot read, so anything put in the document to explain it
   // would be text she is handed — see `store/prompt.ts`.
-  editor.placeholder = `${forPronoun(SAYS.promptEmpty, view.pronoun)}\n\nSlots move a piece instead of leaving it where it goes: ${view.prompt.slots.map((one) => `{${one}}`).join(' ')} and {name}.`
+  editor.placeholder = isZh
+    ? `${forPronoun(SAYS.promptEmpty, view.pronoun)}\n\n使用占位槽移动相应内容（默认置于末尾）：${view.prompt.slots.map((one) => `{${one}}`).join(' ')} 以及 {name}。`
+    : `${forPronoun(SAYS.promptEmpty, view.pronoun)}\n\nSlots move a piece instead of leaving it where it goes: ${view.prompt.slots.map((one) => `{${one}}`).join(' ')} and {name}.`
 
   const sent = element('div', 'wake-box')
   const body = element('pre')
@@ -299,7 +305,7 @@ export function assembledPanel(
     panel most visits do not come to edit. Sent is the answer to "what will she
     be told", which is what the column is for; Write is a step you take.
   */
-  const save = element('button', 'btn primary', 'Save')
+  const save = element('button', 'btn primary', isZh ? '保存' : 'Save')
   save.type = 'button'
   /*
     ABANDON, not Cancel — A8's word, and the more truthful one.
@@ -308,7 +314,7 @@ export function assembledPanel(
     rather than out of the edit: pressing it here keeps you exactly where you
     are and throws away what you typed. Abandon says which of the two it does.
   */
-  const cancel = element('button', 'btn', 'Abandon')
+  const cancel = element('button', 'btn', isZh ? '放弃修改' : 'Abandon')
   cancel.type = 'button'
   const actions = element('div', 'row wake-actions')
   /*
@@ -438,12 +444,15 @@ function deeper(view: ShelfView, worn: ShelfCharacter): HTMLElement {
     would leave them somewhere with no memory of how they arrived, and this
     window already has one way in that they can see.
   */
+  const isZh = getLanguage() === 'zh'
   const rows = [
     {
       to: 'faces' as const,
       field: HER_FIELDS.faces,
       name: forPronoun(SAYS.deeperFaces, view.pronoun),
-      fact: `${String(worn.faces.length)} of 8 allowed`,
+      fact: isZh
+        ? `允许使用 ${String(worn.faces.length)}/8 个`
+        : `${String(worn.faces.length)} of 8 allowed`,
     },
     {
       to: 'notes' as const,
@@ -472,5 +481,6 @@ function deeper(view: ShelfView, worn: ShelfCharacter): HTMLElement {
 /** Lines she has kept, said the way the apparatus column says it. */
 function countOf(text: string): string {
   const lines = text === '' ? 0 : text.split('\n').length
+  if (getLanguage() === 'zh') return lines === 0 ? '暂无记录' : `已记住 ${String(lines)} 条`
   return lines === 0 ? 'nothing yet' : `${String(lines)} kept`
 }

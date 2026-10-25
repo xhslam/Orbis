@@ -826,6 +826,28 @@ describe('what she looks like on the desktop', () => {
       change: { halo: 'listening', shoulderChip: false },
     })
   })
+
+  it('accepts valid language and refuses unsupported language', () => {
+    expect(applyScreen({ language: 'zh' })).toEqual({
+      ok: true,
+      change: { language: 'zh' },
+    })
+    expect(applyScreen({ language: 'en' })).toEqual({
+      ok: true,
+      change: { language: 'en' },
+    })
+    expect(applyScreen({ language: 'fr' }).ok).toBe(false)
+  })
+
+  it('includes language in listScreen', () => {
+    const shown = listScreen({
+      halo: 'always',
+      shoulderChip: true,
+      sleepAfterMinutes: 0,
+      language: 'zh',
+    })
+    expect(shown.language).toBe('zh')
+  })
 })
 
 describe('whether she can look anything up at all', () => {

@@ -98,6 +98,11 @@ const PREFERENCES: Readonly<Record<string, Declared>> = {
     // for" — so the string that proves the control exists is the table's key.
     provenBy: 'languagesHead',
   },
+  uiLanguage: {
+    kind: 'user-choice',
+    because: 'the language switch in Machine settings and On-screen pane',
+    provenBy: 'setLanguage',
+  },
   webSearch: {
     kind: 'user-choice',
     because: 'the "Looking things up" pane',

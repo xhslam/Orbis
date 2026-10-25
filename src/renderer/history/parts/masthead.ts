@@ -22,6 +22,7 @@
 import { element } from '../../element'
 import { PRONOUN_CAPS, faceTile } from '../sheet/face-tile'
 import { type ShelfCharacter, type ShelfView } from '@shared/history-window'
+import { getLanguage } from '../../i18n'
 
 function masthead(
   worn: ShelfCharacter,
@@ -97,13 +98,22 @@ function masthead(
     words she takes, which voice she speaks in, and whether she came from a file.
     In mono, because that is what the second face is for.
   */
-  const facts = element(
-    'div',
-    'who-facts',
-    `${PRONOUN_CAPS[worn.pronoun]} · ${worn.voice} · ${
-      worn.source === null ? 'built-in' : 'from a file'
-    }`,
-  )
+  const isZh = getLanguage() === 'zh'
+  const pronounText = isZh
+    ? worn.pronoun === 'she'
+      ? '她'
+      : worn.pronoun === 'he'
+        ? '他'
+        : '它'
+    : PRONOUN_CAPS[worn.pronoun]
+  const sourceText = isZh
+    ? worn.source === null
+      ? '内置预设'
+      : '文件导入'
+    : worn.source === null
+      ? 'built-in'
+      : 'from a file'
+  const facts = element('div', 'who-facts', `${pronounText} · ${worn.voice} · ${sourceText}`)
 
   const of = element('div', 'who-of')
   of.append(name, facts)

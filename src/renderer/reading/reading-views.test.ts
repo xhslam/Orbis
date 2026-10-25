@@ -48,7 +48,26 @@ function createMockContainer() {
         remove: vi.fn(),
       }
     },
-    querySelectorAll: () => [],
+    querySelectorAll: (selector: string) => {
+      if (selector === '.round-tab-btn') {
+        const matches = Array.from(
+          html.matchAll(/class="round-tab-btn[^"]*"\s+data-round="(\d+)"/g),
+        )
+        return matches.map((m) => {
+          const r = m[1]
+          const subSelector = `.round-tab-btn[data-round="${r}"]`
+          return {
+            getAttribute: (attr: string) => (attr === 'data-round' ? r : null),
+            addEventListener: (event: string, fn: (...args: unknown[]) => void) => {
+              const list = listeners.get(subSelector) ?? []
+              list.push({ event, fn })
+              listeners.set(subSelector, list)
+            },
+          }
+        })
+      }
+      return []
+    },
     appendChild: (child: unknown) => {
       const node = child as { outerHTML?: string; innerHTML?: string }
       if (node?.outerHTML) {
@@ -216,8 +235,8 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('Start Retelling →')
       expect(html).toContain('Practice Scope:')
       expect(html).toContain('All paragraphs (1–3)')
-      expect(html).toContain('id="reading-display-settings-btn"')
-      expect(html).toContain('Display Settings')
+      expect(html).not.toContain('id="reading-display-settings-btn"')
+      expect(html).not.toContain('Display Settings')
     })
   })
 
@@ -428,7 +447,7 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('全部段落 (1–3)')
       expect(html).toContain('自定义范围：')
       expect(html).toContain('💡 提示：使用鼠标选中文中词汇或短语即可添加为复述关键词')
-      expect(html).toContain('排版设置')
+      expect(html).not.toContain('排版设置')
     })
 
     it('renders feedback view in Chinese', () => {
@@ -518,28 +537,12 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('全部段落 (1–3)')
       expect(html).toContain('自定义范围：')
       expect(html).toContain('💡 提示：使用鼠标选中文中词汇或短语即可添加为复述关键词')
-      expect(html).toContain('排版设置')
+      expect(html).not.toContain('排版设置')
       expect(html).toContain('id="close-hint-banner"')
     })
   })
 
-  describe('ArticleView display settings and tip banner', () => {
-    it('calls onOpenSettings when display settings button is clicked', () => {
-      const { element, trigger } = createMockContainer()
-      const onOpenSettings = vi.fn()
-      const props: ArticleViewProps = {
-        article: sampleArticle,
-        onOpenSettings,
-        onUpdateArticle: vi.fn(),
-        onStartRetelling: vi.fn(),
-        onBack: vi.fn(),
-      }
-
-      renderArticleView(props, element)
-      trigger('#reading-display-settings-btn', 'click')
-      expect(onOpenSettings).toHaveBeenCalledTimes(1)
-    })
-
+  describe('ArticleView tip banner', () => {
     it('shows hint banner on first visit and allows closing it', () => {
       const { element, getHtml, trigger } = createMockContainer()
       const props: ArticleViewProps = {
@@ -583,6 +586,188 @@ describe('Reading & Retelling UI Components', () => {
 
       renderArticleView(props, element)
       expect(getHtml()).not.toContain('id="reading-hint-banner"')
+    })
+  })
+
+  describe('Orbit Coach Multi-Round & Interactive Retelling', () => {
+    it('renders Orbit coach badge, round pill, and refresh button in retelling view', () => {
+      const { element, getHtml, trigger } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const onRefresh = vi.fn()
+      const props: RetellingViewProps = {
+        article: sampleArticle,
+        scope,
+        session: null,
+        state: 'ready',
+        roundIndex: 2,
+        onStartRecording: vi.fn(),
+        onFinishSpeaking: vi.fn(),
+        onRefreshSession: onRefresh,
+        onCancel: vi.fn(),
+      }
+
+      renderRetellingView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('Orbit Retelling Coach')
+      expect(html).toContain('Round 2')
+      expect(html).toContain('mochi-avatar-svg')
+      expect(html).toContain('id="refresh-mochi-header-btn"')
+
+      trigger('#refresh-mochi-header-btn', 'click')
+      expect(onRefresh).toHaveBeenCalledTimes(1)
+    })
+
+    it('renders live user speech box during recording in retelling view', () => {
+      const { element, getHtml } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const props: RetellingViewProps = {
+        article: sampleArticle,
+        scope,
+        session: null,
+        state: 'recording',
+        roundIndex: 1,
+        liveUserTranscript: 'The Great Barrier Reef is huge and full of species.',
+        onStartRecording: vi.fn(),
+        onFinishSpeaking: vi.fn(),
+        onCancel: vi.fn(),
+      }
+
+      renderRetellingView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('The Great Barrier Reef is huge and full of species.')
+      expect(html).toContain('My Spoken Output')
+    })
+
+    it('renders side-by-side comparison panels with original text, user output, and Orbit suggestions in feedback view', () => {
+      const { element, getHtml, trigger } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const onStartNextRound = vi.fn()
+      const onAskQuestion = vi.fn()
+      const props: FeedbackViewProps = {
+        article: sampleArticle,
+        scope,
+        transcript: 'Great job! You mentioned the coral reef and species.',
+        coachTranscript: 'Great job! You mentioned the coral reef and species.',
+        userTranscript: 'The reef is located in Australia with diverse animals.',
+        state: 'ready',
+        session: null,
+        currentRoundIndex: 1,
+        selectedRoundIndex: 1,
+        rounds: [],
+        onTryAgain: vi.fn(),
+        onReviewArticle: vi.fn(),
+        onFinishPractice: vi.fn(),
+        onStartNextRound,
+        onAskQuestionStart: onAskQuestion,
+      }
+
+      renderFeedbackView(props, element)
+      const html = getHtml()
+
+      // Header should show feedback status
+      expect(html).toContain('Feedback Complete')
+      expect(html).toContain('Round 1')
+
+      // Panel 1: Original material and keywords
+      expect(html).toContain('Original Material & Cues')
+      expect(html).toContain('The Great Barrier Reef is the largest coral reef system.')
+
+      // Panel 2: User spoken output
+      expect(html).toContain('My Spoken Output')
+      expect(html).toContain('The reef is located in Australia with diverse animals.')
+
+      // Panel 3: Orbit feedback and suggestions
+      expect(html).toContain("Orbit's Feedback & Suggestions")
+      expect(html).toContain('Great job! You mentioned the coral reef and species.')
+
+      // Interactive buttons
+      expect(html).toContain('Start Round 2 with Feedback →')
+      expect(html).toContain('Ask Orbit (Voice Q&A)')
+
+      trigger('#start-next-round-btn', 'click')
+      expect(onStartNextRound).toHaveBeenCalledTimes(1)
+
+      trigger('#ask-orbit-btn', 'click')
+      expect(onAskQuestion).toHaveBeenCalledTimes(1)
+    })
+
+    it('renders multi-round tabs and allows switching between rounds', () => {
+      const { element, getHtml, trigger } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const onSelectRound = vi.fn()
+      const props: FeedbackViewProps = {
+        article: sampleArticle,
+        scope,
+        coachTranscript: 'Round 2 feedback: Excellent improvement on terminology.',
+        userTranscript: 'Round 2 output: The Great Barrier Reef is home to thousands of species.',
+        state: 'ready',
+        session: null,
+        currentRoundIndex: 2,
+        selectedRoundIndex: 2,
+        rounds: [
+          {
+            roundIndex: 1,
+            userTranscript: 'Round 1 output: Quick summary.',
+            coachFeedback: 'Round 1 feedback: Missing details.',
+            timestamp: 1000,
+          },
+          {
+            roundIndex: 2,
+            userTranscript:
+              'Round 2 output: The Great Barrier Reef is home to thousands of species.',
+            coachFeedback: 'Round 2 feedback: Excellent improvement on terminology.',
+            timestamp: 2000,
+          },
+        ],
+        onTryAgain: vi.fn(),
+        onReviewArticle: vi.fn(),
+        onFinishPractice: vi.fn(),
+        onSelectRound,
+      }
+
+      renderFeedbackView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('Round 1')
+      expect(html).toContain('Round 2')
+      expect(html).toContain(
+        'Round 2 output: The Great Barrier Reef is home to thousands of species.',
+      )
+
+      // Clicking Round 1 tab
+      trigger('.round-tab-btn[data-round="1"]', 'click')
+      expect(onSelectRound).toHaveBeenCalledWith(1)
+    })
+
+    it('renders in Chinese with Orbit coach, multi-round guidance, and comparison', () => {
+      setLanguage('zh')
+      const { element, getHtml } = createMockContainer()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 1 }
+      const props: FeedbackViewProps = {
+        article: sampleArticle,
+        scope,
+        coachTranscript: '复述得很好！你完整表达了核心概念。',
+        userTranscript: '大堡礁是世界上最大的珊瑚礁系统。',
+        state: 'ready',
+        session: null,
+        currentRoundIndex: 1,
+        selectedRoundIndex: 1,
+        onTryAgain: vi.fn(),
+        onReviewArticle: vi.fn(),
+        onFinishPractice: vi.fn(),
+      }
+
+      renderFeedbackView(props, element)
+      const html = getHtml()
+
+      expect(html).toContain('讲评完成')
+      expect(html).toContain('原文与关键词线索')
+      expect(html).toContain('我的复述输出')
+      expect(html).toContain('Orbit 补充建议与讲评')
+      expect(html).toContain('针对建议开始第 2 轮复述 →')
+      expect(html).toContain('向 Orbit 语音提问 / 互动探讨')
     })
   })
 })

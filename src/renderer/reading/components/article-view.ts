@@ -8,6 +8,36 @@ import {
 } from '@shared/reading/article'
 import { t, getLanguage } from '../../i18n'
 
+const TIP_DISMISSED_KEY = 'orbis:reading:keyword-tip-dismissed'
+const TIP_SEEN_KEY = 'orbis:reading:keyword-tip-seen'
+
+let tipActiveInSession = false
+
+export function resetTipStateForTesting(): void {
+  tipActiveInSession = false
+}
+
+function getStorageItem(key: string): string | null {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(key)
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return null
+}
+
+function setStorageItem(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value)
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -51,8 +81,8 @@ function renderParagraphWithHighlights(
 
 export interface ArticleViewProps {
   readonly article: Article
-  readonly scope?: PracticeScope
-  readonly onScopeChange?: (scope: PracticeScope) => void
+  readonly scope?: PracticeScope | undefined
+  readonly onScopeChange?: ((scope: PracticeScope) => void) | undefined
   readonly onUpdateArticle: (updated: Article) => void
   readonly onStartRetelling: (scope: PracticeScope) => void
   readonly onBack: () => void
@@ -66,6 +96,23 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
     startParagraph: 0,
     endParagraph: totalP - 1,
   }
+
+  const isDismissed = getStorageItem(TIP_DISMISSED_KEY) === 'true'
+  const isSeen = getStorageItem(TIP_SEEN_KEY) === 'true'
+  const showTip = !isDismissed && (!isSeen || tipActiveInSession)
+  if (showTip) {
+    tipActiveInSession = true
+    setStorageItem(TIP_SEEN_KEY, 'true')
+  }
+
+  const hintBannerHtml = showTip
+    ? `
+      <div class="hint-banner" id="reading-hint-banner">
+        <span class="hint-banner-text">${i18n.keywordTip}</span>
+        <button type="button" class="hint-banner-close" id="close-hint-banner" aria-label="${escapeHtml(i18n.close)}" title="${escapeHtml(i18n.close)}">✕</button>
+      </div>
+    `
+    : ''
 
   const paragraphCards = props.article.paragraphs
     .map((p) => {
@@ -130,9 +177,7 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
         </div>
       </div>
 
-      <div class="hint-banner">
-        ${i18n.keywordTip}
-      </div>
+      ${hintBannerHtml}
 
       <main class="reading-canvas">
         <article class="article-content">
@@ -144,7 +189,16 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
 
   // Wire back button
   container.querySelector('#article-back-btn')?.addEventListener('click', () => {
+    tipActiveInSession = false
     props.onBack()
+  })
+
+  // Wire close hint banner
+  container.querySelector('#close-hint-banner')?.addEventListener('click', () => {
+    setStorageItem(TIP_DISMISSED_KEY, 'true')
+    setStorageItem(TIP_SEEN_KEY, 'true')
+    tipActiveInSession = false
+    container.querySelector('#reading-hint-banner')?.remove()
   })
 
   // Wire scope radio & inputs
@@ -176,6 +230,7 @@ export function renderArticleView(props: ArticleViewProps, container: HTMLElemen
 
   // Wire start retelling
   container.querySelector('#start-retell-btn')?.addEventListener('click', () => {
+    tipActiveInSession = false
     props.onStartRetelling(currentScope)
   })
 

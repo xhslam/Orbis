@@ -29,6 +29,7 @@ import { section } from '../../history/sheet/row'
 import { type SettingsUpdate, type SettingsView } from '@shared/ipc'
 import { AUTHOR, SITE, SOURCE, VERSION, glyphSvg, type Glyph } from '../../history/glyph'
 import { type Link } from '@shared/links'
+import { getLanguage } from '../../i18n'
 
 /**
  * What this group holds, named once. See `Field`.
@@ -148,14 +149,25 @@ export const ABOUT: Pane = {
  */
 function builtOn(electron: string): HTMLElement {
   const table = element('div', 'built-on')
-  for (const [what, detail] of [
-    ['Electron', `${electron} · MIT`],
-    ['node:sqlite', 'part of the runtime — no package of its own'],
-    ['Outfit', 'SIL OFL 1.1 · bundled'],
-    ['JetBrains Mono', 'SIL OFL 1.1 · bundled'],
-    ['electron-updater', 'MIT · the only runtime dependency, and what it pulls in'],
-    ['everything else', 'none — nothing else is bundled'],
-  ] as const) {
+  const isZh = getLanguage() === 'zh'
+  const items = isZh
+    ? ([
+        ['Electron', `${electron} · MIT`],
+        ['node:sqlite', '系统内置运行环境 — 无独立第三方包'],
+        ['Outfit', 'SIL OFL 1.1 · 内置字体'],
+        ['JetBrains Mono', 'SIL OFL 1.1 · 内置字体'],
+        ['electron-updater', 'MIT · 唯一的运行时依赖项及其依赖'],
+        ['其他依赖', '无 — 未打包其他依赖'],
+      ] as const)
+    : ([
+        ['Electron', `${electron} · MIT`],
+        ['node:sqlite', 'part of the runtime — no package of its own'],
+        ['Outfit', 'SIL OFL 1.1 · bundled'],
+        ['JetBrains Mono', 'SIL OFL 1.1 · bundled'],
+        ['electron-updater', 'MIT · the only runtime dependency, and what it pulls in'],
+        ['everything else', 'none — nothing else is bundled'],
+      ] as const)
+  for (const [what, detail] of items) {
     const row = element('div', 'built-row')
     row.append(element('span', 'built-what', what), element('span', 'built-detail', detail))
     table.append(row)
@@ -182,11 +194,12 @@ function builtOn(electron: string): HTMLElement {
  */
 function links(handlers: PaneHandlers, version: string): HTMLElement {
   const list = anchor(FIELDS.links, element('div', 'about-links'))
+  const isZh = getLanguage() === 'zh'
   const rows: readonly [Glyph, string, string, Link | null][] = [
-    [AUTHOR, 'Author', '@xiaolai · lixiaolai.com', 'author'],
-    [SOURCE, 'Source', 'github.com/xiaolai/mochi', 'repo'],
-    [SITE, 'Website', 'moch.im', 'site'],
-    [VERSION, 'Version', version, null],
+    [AUTHOR, isZh ? '作者' : 'Author', '@xiaolai · lixiaolai.com', 'author'],
+    [SOURCE, isZh ? '代码仓库' : 'Source', 'github.com/xiaolai/mochi', 'repo'],
+    [SITE, isZh ? '官方网站' : 'Website', 'moch.im', 'site'],
+    [VERSION, isZh ? '版本号' : 'Version', version, null],
   ]
   for (const [glyph, what, said, opens] of rows) {
     const row = element(opens === null ? 'div' : 'button', 'about-link')
@@ -245,17 +258,31 @@ function updates(
   pronoun: SettingsView['pronoun'],
   handlers: PaneHandlers,
 ): HTMLElement {
-  const said: Record<SettingsUpdate['kind'], string> = {
-    unsupported: 'Only a packaged build can update itself — this one is running from source.',
-    idle: 'Not checked yet.',
-    none: 'This is the newest build.',
-    available: 'A newer build is out.',
-    ready: 'Downloaded. It replaces this one when you restart.',
-    failed: 'Could not check.',
-  }
+  const isZh = getLanguage() === 'zh'
+  const said: Record<SettingsUpdate['kind'], string> = isZh
+    ? {
+        unsupported: '仅打包发布的正式版本支持自动检查更新 — 当前正在从源码运行。',
+        idle: '尚未检查。',
+        none: '当前已是最新版本。',
+        available: '发现新版本可用。',
+        ready: '新版本已下载完毕。重启应用后生效。',
+        failed: '检查更新失败。',
+      }
+    : {
+        unsupported: 'Only a packaged build can update itself — this one is running from source.',
+        idle: 'Not checked yet.',
+        none: 'This is the newest build.',
+        available: 'A newer build is out.',
+        ready: 'Downloaded. It replaces this one when you restart.',
+        failed: 'Could not check.',
+      }
   const note = element('p', 'note', said[state.kind])
-  if (state.kind === 'failed') note.textContent = `Could not check — ${state.why}`
-  if (state.kind === 'available') note.textContent = `${state.version} is out.`
+  if (state.kind === 'failed') {
+    note.textContent = isZh ? `检查更新失败 — ${state.why}` : `Could not check — ${state.why}`
+  }
+  if (state.kind === 'available') {
+    note.textContent = isZh ? `新版本 ${state.version} 已发布。` : `${state.version} is out.`
+  }
 
   const press = element('button', 'btn')
   press.type = 'button'
@@ -264,25 +291,25 @@ function updates(
       ? null
       : state.kind === 'available'
         ? {
-            label: `Download ${state.version}`,
+            label: isZh ? `下载 ${state.version}` : `Download ${state.version}`,
             run: () => {
               press.disabled = true
-              press.textContent = 'Downloading…'
+              press.textContent = isZh ? '正在下载…' : 'Downloading…'
               void handlers.downloadUpdate()
             },
           }
         : state.kind === 'ready'
           ? {
-              label: `Restart and install ${state.version}`,
+              label: isZh ? `重启并安装 ${state.version}` : `Restart and install ${state.version}`,
               run: () => {
                 handlers.installUpdate()
               },
             }
           : {
-              label: 'Check for updates',
+              label: isZh ? '检查更新' : 'Check for updates',
               run: () => {
                 press.disabled = true
-                press.textContent = 'Checking…'
+                press.textContent = isZh ? '正在检查…' : 'Checking…'
                 void handlers.checkUpdate()
               },
             }
@@ -309,7 +336,7 @@ function updates(
     FIELDS.updates,
     section(
       paneLabel(FIELDS.updates.label, pronoun),
-      state.kind === 'none' ? 'up to date' : '',
+      state.kind === 'none' ? (isZh ? '已是最新版本' : 'up to date') : '',
       wrap,
     ),
   )

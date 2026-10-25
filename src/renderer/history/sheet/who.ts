@@ -28,6 +28,8 @@ import { HER_FIELDS } from './fields'
  * window has been bitten by before: the last write wins rather than the last
  * click, and which one that is depends on which pane re-read first.
  */
+import { getLanguage } from '../../i18n'
+
 export function whoSection(
   view: ShelfView,
   worn: ShelfCharacter,
@@ -57,7 +59,7 @@ export function whoSection(
       The delivery's word, and it is better: "nothing yet" is what is true,
       where "nobody has said" is a small story about how it got that way.
     */
-    placeholder: 'nothing yet',
+    placeholder: getLanguage() === 'zh' ? '暂无称呼' : 'nothing yet',
     save: (value) => {
       handlers.save({ id: worn.id, addressUser: value })
     },
@@ -70,11 +72,15 @@ export function whoSection(
     is a fact about the setting and not an instruction, so it is not a `.note`.
   */
   const named = element('div', 'setting-pair')
+  const zhPronouns: Record<string, string> = { she: '她', he: '他', it: '它' }
   named.append(
     name,
     chooser(
       'switchers',
-      PRONOUNS.map((one) => ({ value: one, label: one })),
+      PRONOUNS.map((one) => ({
+        value: one,
+        label: getLanguage() === 'zh' ? (zhPronouns[one] ?? one) : one,
+      })),
       worn.pronoun,
       (value) => {
         handlers.save({ id: worn.id, pronoun: value })

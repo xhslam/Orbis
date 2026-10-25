@@ -84,6 +84,7 @@ export interface Answers {
   'shelf:persona': SettingsWrite
   'shelf:wear-face': SettingsWrite
   'shelf:prompt': SettingsWrite
+  'shelf:resting': SettingsWrite
 
   /* ---- the machine's page ----------------------------------------------- */
   'settings:read': SettingsView

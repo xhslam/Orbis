@@ -14,6 +14,7 @@ import { type ShelfHandlers, section } from './row'
 import { undoing } from '../../rules/undoing'
 import { type ShelfView } from '@shared/history-window'
 import { forPronoun, label as copyFor } from '@shared/pronoun'
+import { getLanguage } from '../../i18n'
 /**
  * What she remembers, with the one step back.
  *
@@ -22,6 +23,7 @@ import { forPronoun, label as copyFor } from '@shared/pronoun'
  * one thing that needs an undo at all.
  */
 export function memorySection(view: ShelfView, handlers: ShelfHandlers): HTMLElement {
+  const isZh = getLanguage() === 'zh'
   /*
     The one step back, from the rule rather than from a comparison here.
 
@@ -33,7 +35,7 @@ export function memorySection(view: ShelfView, handlers: ShelfHandlers): HTMLEle
     somebody most wants back.
   */
   const back = undoing(view.note)
-  const undo = element('button', 'btn', 'Undo that line')
+  const undo = element('button', 'btn', isZh ? '撤销该行' : 'Undo that line')
   undo.type = 'button'
   undo.disabled = !back.offered
   undo.addEventListener('click', () => {
@@ -105,13 +107,21 @@ export function memorySection(view: ShelfView, handlers: ShelfHandlers): HTMLEle
   */
   if (back.offered) {
     const many = Math.abs(back.lines)
-    const what =
-      back.lines > 0
+    const what = isZh
+      ? back.lines > 0
+        ? `撤销 ${String(many)} 行`
+        : back.lines < 0
+          ? `恢复 ${String(many)} 行`
+          : '恢复上一版本'
+      : back.lines > 0
         ? `takes back ${String(many)} line${many === 1 ? '' : 's'}`
         : back.lines < 0
           ? `puts ${String(many)} line${many === 1 ? '' : 's'} back`
           : 'restores the previous version'
-    wrap.append(element('p', 'note', `Only the most recent change can be undone — this ${what}.`))
+    const noteText = isZh
+      ? `仅可撤销最近一次变更 — 当前操作将${what}。`
+      : `Only the most recent change can be undone — this ${what}.`
+    wrap.append(element('p', 'note', noteText))
   }
   /*
     Into the section's own head, beside the hint — and it THROWS if it is not

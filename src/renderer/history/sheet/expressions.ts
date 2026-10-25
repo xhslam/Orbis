@@ -8,6 +8,7 @@ import { permitted } from '../../rules/expressions'
 import { faceTile } from './face-tile'
 import { type ShelfHandlers, section } from './row'
 import { SAYS } from '../shelf-says'
+import { getLanguage } from '../../i18n'
 
 /**
  * Her eight expressions, each at the size she is actually drawn.
@@ -90,9 +91,10 @@ export function expressionsSection(
       `layoutFor` is the function that answers what that size actually is, and
       it is the same one the rig lays her out with.
     */
+    const isZh = getLanguage() === 'zh'
     tile.append(faceTile(worn.face, drawnHeight(worn), emotion))
-    tile.append(element('div', 'face-name', NAMES[emotion]))
-    tile.append(element('p', 'face-when', WHEN[emotion]))
+    tile.append(element('div', 'face-name', (isZh ? NAMES_ZH : NAMES)[emotion]))
+    tile.append(element('p', 'face-when', (isZh ? WHEN_ZH : WHEN)[emotion]))
 
     /*
       THE WORD SAYS THE STATE, so it is written from the same value the box is
@@ -100,12 +102,16 @@ export function expressionsSection(
       off the element it would be two facts that merely happen to agree.
     */
     const permittedNow = permitted([...allowed], emotion)
-    const label = element('label', 'face-allow', permittedNow ? 'Allowed' : 'Withheld')
+    const label = element(
+      'label',
+      'face-allow',
+      permittedNow ? (isZh ? '允许使用' : 'Allowed') : isZh ? '已禁用' : 'Withheld',
+    )
     const allow = checkbox(`allow-${emotion}`, permittedNow, (on) => {
       // Mutated, not copied — see the set above.
       if (on) allowed.add(emotion)
       else allowed.delete(emotion)
-      label.textContent = on ? 'Allowed' : 'Withheld'
+      label.textContent = on ? (isZh ? '允许使用' : 'Allowed') : isZh ? '已禁用' : 'Withheld'
       // In `EMOTIONS` order, always. The manifest is read by people, and a list
       // whose order records the sequence somebody clicked in is noise on disk.
       handlers.save({ id: worn.id, faces: EMOTIONS.filter((one) => allowed.has(one)) })
@@ -118,9 +124,13 @@ export function expressionsSection(
   }
 
   const kept = worn.faces.length
+  const isZh = getLanguage() === 'zh'
+  const countSummary = isZh
+    ? `已绘制 ${String(EMOTIONS.length)} 个 · 允许使用 ${String(kept)}/${String(EMOTIONS.length)} 个`
+    : `${String(EMOTIONS.length)} drawn · ${String(kept)} of ${String(EMOTIONS.length)} allowed`
   return section(
     forPronoun(SAYS.expressions, view.pronoun),
-    `${String(EMOTIONS.length)} drawn · ${String(kept)} of ${String(EMOTIONS.length)} allowed`,
+    countSummary,
     element('p', 'note', forPronoun(SAYS.seeingAndPermitting, view.pronoun)),
     grid,
     element('p', 'note', forPronoun(SAYS.mayBeEmpty, view.pronoun)),
@@ -137,6 +147,17 @@ const NAMES: Readonly<Record<Emotion, string>> = {
   surprised: 'Surprised',
   thinking: 'Thinking',
   sleepy: 'Sleepy',
+}
+
+const NAMES_ZH: Readonly<Record<Emotion, string>> = {
+  neutral: '平静',
+  happy: '开心',
+  shy: '害羞',
+  sad: '难过',
+  angry: '生气',
+  surprised: '惊讶',
+  thinking: '思考',
+  sleepy: '困倦',
 }
 
 /**
@@ -157,6 +178,17 @@ const WHEN: Readonly<Record<Emotion, string>> = {
   surprised: 'cut off mid-sentence, and on waking',
   thinking: 'looking something up',
   sleepy: 'resting, or about to',
+}
+
+const WHEN_ZH: Readonly<Record<Emotion, string>> = {
+  neutral: '常态表情与默认回退',
+  happy: '有好消息，或者你回来了',
+  shy: '受到夸奖，或者被说中',
+  sad: '有坏消息，或者你离开了',
+  angry: '在特定情境下展现',
+  surprised: '被打断，或刚被唤醒时',
+  thinking: '正在查询信息时',
+  sleepy: '休息中，或即将入睡',
 }
 
 /**

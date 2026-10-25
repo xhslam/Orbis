@@ -16,6 +16,7 @@ import { SIDE_NAMES } from '@shared/persona'
 import { forPronoun, label as copyFor, type ByPronoun } from '@shared/pronoun'
 import { anchor } from '../../field'
 import { HER_FIELDS } from './fields'
+import { getLanguage } from '../../i18n'
 /**
  * Her words on your desktop: whether they are drawn, and where.
  *
@@ -66,7 +67,8 @@ export function savingSection(
   const keeps = checkbox('keeps', worn.keeps, (on) => {
     handlers.save({ id: worn.id, keeps: on })
   })
-  const label = element('label', undefined, 'Save new conversations')
+  const isZh = getLanguage() === 'zh'
+  const label = element('label', undefined, isZh ? '保存新的对话记录' : 'Save new conversations')
   label.htmlFor = keeps.id
   const row = element('div', 'row')
   row.append(keeps, label)
@@ -87,15 +89,23 @@ export function bubbleSection(
   worn: ShelfCharacter,
   handlers: ShelfHandlers,
 ): HTMLElement {
+  const isZh = getLanguage() === 'zh'
   const bubble = checkbox('bubble', worn.bubble, (on) => {
     handlers.save({ id: worn.id, bubble: on })
   })
-  const label = element('label', undefined, 'Show it')
+  const label = element('label', undefined, isZh ? '说话时显示气泡' : 'Show it')
   label.htmlFor = bubble.id
   const row = element('div', 'row')
   row.append(bubble, label)
 
   const side = document.createElement('select')
+  const zhSideNames: Record<string, string> = {
+    auto: '自动适应（有空位处）',
+    above: '上方',
+    below: '下方',
+    left: '左侧',
+    right: '右侧',
+  }
   for (const one of worn.bubbleSides) {
     const option = document.createElement('option')
     option.value = one
@@ -111,7 +121,9 @@ export function bubbleSection(
     // blank — the tray's own submenu makes the same allowance for the same
     // reason: `bubbleSides` crosses the wire as strings.
     const named = (SIDE_NAMES as Record<string, ByPronoun>)[one] ?? SIDE_NAMES.auto
-    option.textContent = forPronoun(named, view.pronoun)
+    option.textContent = isZh
+      ? (zhSideNames[one] ?? forPronoun(named, view.pronoun))
+      : forPronoun(named, view.pronoun)
     option.selected = one === worn.bubbleSide
     side.append(option)
   }

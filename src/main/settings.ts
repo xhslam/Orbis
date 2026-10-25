@@ -392,6 +392,7 @@ export function listScreen(rest: {
   readonly halo: HaloWhen
   readonly shoulderChip: boolean
   readonly sleepAfterMinutes: number
+  readonly language?: 'en' | 'zh'
 }): SettingsScreen {
   return {
     halo: rest.halo,
@@ -403,6 +404,7 @@ export function listScreen(rest: {
     // Sent rather than written into the pane: a page holding its own list would
     // be a second answer to what may be chosen, and only one is checked back.
     sleepAfterChoices: [...SLEEP_AFTER_CHOICES],
+    ...(rest.language !== undefined ? { language: rest.language } : {}),
   }
 }
 
@@ -428,6 +430,7 @@ export interface CheckedScreen {
   readonly halo?: HaloWhen
   readonly shoulderChip?: boolean
   readonly sleepAfterMinutes?: number
+  readonly language?: 'en' | 'zh'
 }
 
 export function applyScreen(
@@ -439,6 +442,7 @@ export function applyScreen(
     halo?: HaloWhen
     shoulderChip?: boolean
     sleepAfterMinutes?: number
+    language?: 'en' | 'zh'
   } = {}
 
   if (change.halo !== undefined) {
@@ -473,6 +477,13 @@ export function applyScreen(
       return { ok: false, why: `${String(change.sleepAfterMinutes)} is not one of the choices.` }
     }
     checked.sleepAfterMinutes = change.sleepAfterMinutes
+  }
+
+  if (change.language !== undefined) {
+    if (change.language !== 'en' && change.language !== 'zh') {
+      return { ok: false, why: `${String(change.language)} is not a supported language.` }
+    }
+    checked.language = change.language
   }
 
   return { ok: true, change: checked }

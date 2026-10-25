@@ -14,6 +14,7 @@ import { GRANT_SPECS } from '@shared/grants'
 import { type GrantUse, type SettingsGrant } from '@shared/ipc'
 import { forPronoun, label as copyFor } from '@shared/pronoun'
 import { SAYS } from '../panes-says'
+import { getLanguage } from '../../i18n'
 /**
  * When it was last used, and when a change to it takes effect.
  *
@@ -26,17 +27,29 @@ import { SAYS } from '../panes-says'
  * "Use is not recorded", which reads as a heading for something.
  */
 function lastUsedLabel(use: GrantUse, when: string): string {
+  const isZh = getLanguage() === 'zh'
   const used =
     use.kind === 'not-recorded'
-      ? 'use is not recorded'
+      ? isZh
+        ? '无调用记录'
+        : 'use is not recorded'
       : use.kind === 'never'
-        ? 'never used'
-        : `last used ${new Date(use.at).toLocaleString([], {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}`
+        ? isZh
+          ? '从未调用'
+          : 'never used'
+        : isZh
+          ? `最近调用于 ${new Date(use.at).toLocaleString('zh-CN', {
+              month: 'numeric',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`
+          : `last used ${new Date(use.at).toLocaleString([], {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`
   return `${used} · ${when}`
 }
 
@@ -70,15 +83,22 @@ export const MAY_DO: Pane = {
   attention: () => null,
   fields: (view) => view.grants.map(grantField),
   render(view, handlers) {
+    const isZh = getLanguage() === 'zh'
     const rows = view.grants.map((grant) => {
       const spec = GRANT_SPECS.find((one) => one.id === grant.id)
       const row = anchor(grantField(grant), element('div', 'grant'))
 
       const left = element('div')
-      left.append(
-        element('div', 'name', spec?.label ?? grant.id),
-        element('p', 'desc', spec === undefined ? '' : forPronoun(spec.detail, view.pronoun)),
-      )
+      const labelText = isZh
+        ? (GRANT_LABELS_ZH[grant.id] ?? spec?.label ?? grant.id)
+        : (spec?.label ?? grant.id)
+      const descText = isZh
+        ? (GRANT_DETAILS_ZH[grant.id] ??
+          (spec === undefined ? '' : forPronoun(spec.detail, view.pronoun)))
+        : spec === undefined
+          ? ''
+          : forPronoun(spec.detail, view.pronoun)
+      left.append(element('div', 'name', labelText), element('p', 'desc', descText))
 
       const allowed = checkbox(`grant-${grant.id}`, grant.allowed, (on) => {
         handlers.grant({ id: grant.id, allowed: on })
@@ -95,9 +115,19 @@ export const MAY_DO: Pane = {
         for somebody who does not see it. A word that does not move with the mark
         is worse than no word: it is a second signal that disagrees.
       */
-      const label = element('label', 'switch-word', grant.allowed ? 'Allowed' : 'Withheld')
+      const label = element(
+        'label',
+        'switch-word',
+        grant.allowed ? (isZh ? '允许使用' : 'Allowed') : isZh ? '已禁用' : 'Withheld',
+      )
       allowed.addEventListener('change', () => {
-        label.textContent = allowed.checked ? 'Allowed' : 'Withheld'
+        label.textContent = allowed.checked
+          ? isZh
+            ? '允许使用'
+            : 'Allowed'
+          : isZh
+            ? '已禁用'
+            : 'Withheld'
       })
       label.htmlFor = allowed.id
       const wrap = element('div', 'switch')
@@ -168,7 +198,7 @@ export const MAY_DO: Pane = {
     */
     const heading = sectionHead(
       forPronoun(SAYS.told, view.pronoun),
-      `${String(view.capabilities.length)} · not editable here`,
+      `${String(view.capabilities.length)} · ${isZh ? '不可在此编辑' : 'not editable here'}`,
     )
     if (view.capabilities.length === 0) {
       return [
@@ -195,4 +225,19 @@ export const MAY_DO: Pane = {
       }),
     ]
   },
+}
+
+const GRANT_LABELS_ZH: Record<string, string> = {
+  speak_first: '主动打招呼',
+  ask_workspace: '读取工作区',
+  remember_this: '记录重要笔记',
+  recall_codex: '检索 Codex 记录',
+}
+
+const GRANT_DETAILS_ZH: Record<string, string> = {
+  speak_first: '唤醒时主动问候，无需等待你先说话。',
+  ask_workspace: '在指定的工作区目录中查阅文件与信息。',
+  remember_this: '在收到请求时，将重要事实保存至长期笔记中。',
+  recall_codex:
+    '在当前电脑上检索 Codex 历史记录。只读访问且绝不更改原记录，检索内容发送给模型作为对话参考。',
 }

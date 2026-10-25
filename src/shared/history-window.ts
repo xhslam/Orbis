@@ -237,6 +237,7 @@ export interface ShelfView {
     readonly limit: number
   }
   readonly note: SettingsNote
+  readonly resting: { readonly asleep: boolean; readonly hidden: boolean }
 }
 
 /**
@@ -299,6 +300,8 @@ export interface MochiHistoryApi {
   prompt(text: string): Promise<SettingsWrite>
   /** Put one turn's words on the clipboard. See `shelf:copy`. */
   copy(text: string): Promise<SettingsWrite>
+  /** Wake, rest, show, or hide the desktop companion. */
+  resting(change: { asleep?: boolean; hidden?: boolean }): Promise<SettingsWrite>
   /** Open or bring forward the Orbis Reading & Retelling window. */
   openReading(): void
 }

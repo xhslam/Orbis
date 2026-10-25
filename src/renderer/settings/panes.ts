@@ -6,6 +6,7 @@ import { KEYS } from './pane/keys'
 import { LOOKING } from './pane/looking'
 import { ON_SCREEN } from './pane/on-screen'
 import { PROMPTS } from './pane/prompts'
+import { READING } from './pane/reading'
 
 /**
  * The six groups, one at a time.
@@ -64,4 +65,13 @@ import { PROMPTS } from './pane/prompts'
   per character; retention, which is per character; and any measure of size,
   which nothing in the store can answer.
 */
-export const PANES: readonly Pane[] = [LOOKING, HEARING, PROMPTS, ON_SCREEN, KEYS, STORAGE, ABOUT]
+export const PANES: readonly Pane[] = [
+  LOOKING,
+  HEARING,
+  PROMPTS,
+  ON_SCREEN,
+  READING,
+  KEYS,
+  STORAGE,
+  ABOUT,
+]
