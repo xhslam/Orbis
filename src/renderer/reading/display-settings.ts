@@ -114,6 +114,62 @@ export function getMarginPixels(pageMargin: string): number {
   return match ? match.px : 32
 }
 
+/** Stored values are data, not CSS. Ignore malformed or obsolete choices. */
+export function normalizeReadingDisplaySettings(
+  value: Partial<ReadingDisplaySettings> | null,
+): ReadingDisplaySettings {
+  const p = value ?? {}
+  const d = DEFAULT_READING_DISPLAY_SETTINGS
+  return {
+    contentWidth: CONTENT_WIDTH_OPTIONS.some((o) => o.value === p.contentWidth)
+      ? p.contentWidth!
+      : d.contentWidth,
+    pageMargin: PAGE_MARGIN_OPTIONS.some((o) => o.value === p.pageMargin)
+      ? p.pageMargin!
+      : d.pageMargin,
+    fontSize: FONT_SIZE_OPTIONS.some((o) => o.value === p.fontSize) ? p.fontSize! : d.fontSize,
+    latinFont: LATIN_FONT_OPTIONS.some((o) => o.value === p.latinFont) ? p.latinFont! : d.latinFont,
+    cjkFont: CJK_FONT_OPTIONS.some((o) => o.value === p.cjkFont) ? p.cjkFont! : d.cjkFont,
+    lineHeight: LINE_HEIGHT_OPTIONS.some((o) => o.value === p.lineHeight)
+      ? p.lineHeight!
+      : d.lineHeight,
+  }
+}
+
+export function hasReadingDisplaySettings(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(SETTINGS_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
+function notifySettings(settings: ReadingDisplaySettings): void {
+  const current = listeners.slice()
+  for (const listener of current) {
+    try {
+      listener(settings)
+    } catch (error) {
+      console.error('[reading-display-settings] listener failed:', error)
+    }
+  }
+}
+
+let stopStorage: (() => void) | null = null
+function listenToOtherDocuments(): void {
+  if (stopStorage || typeof window === 'undefined') return
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== SETTINGS_KEY && event.key !== null) return
+    if (event.storageArea && event.storageArea !== localStorage) return
+    cachedSettings = null
+    const settings = getReadingDisplaySettings()
+    applyReadingDisplaySettings(settings)
+    notifySettings(settings)
+  }
+  window.addEventListener('storage', onStorage)
+  stopStorage = () => window.removeEventListener('storage', onStorage)
+}
+
 export function getReadingDisplaySettings(): ReadingDisplaySettings {
   if (cachedSettings !== null) return cachedSettings
   try {
@@ -121,17 +177,7 @@ export function getReadingDisplaySettings(): ReadingDisplaySettings {
       const stored = localStorage.getItem(SETTINGS_KEY)
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<ReadingDisplaySettings>
-        cachedSettings = {
-          contentWidth: parsed.contentWidth ?? DEFAULT_READING_DISPLAY_SETTINGS.contentWidth,
-          pageMargin: parsed.pageMargin ?? DEFAULT_READING_DISPLAY_SETTINGS.pageMargin,
-          fontSize:
-            typeof parsed.fontSize === 'number'
-              ? parsed.fontSize
-              : DEFAULT_READING_DISPLAY_SETTINGS.fontSize,
-          latinFont: parsed.latinFont ?? DEFAULT_READING_DISPLAY_SETTINGS.latinFont,
-          cjkFont: parsed.cjkFont ?? DEFAULT_READING_DISPLAY_SETTINGS.cjkFont,
-          lineHeight: parsed.lineHeight ?? DEFAULT_READING_DISPLAY_SETTINGS.lineHeight,
-        }
+        cachedSettings = normalizeReadingDisplaySettings(parsed)
         return cachedSettings
       }
     }
@@ -161,7 +207,8 @@ export function applyReadingDisplaySettings(
 }
 
 export function setReadingDisplaySettings(settings: ReadingDisplaySettings): void {
-  cachedSettings = { ...settings }
+  settings = normalizeReadingDisplaySettings(settings)
+  cachedSettings = settings
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
@@ -178,19 +225,18 @@ export function setReadingDisplaySettings(settings: ReadingDisplaySettings): voi
     )
   }
 
-  for (const listener of listeners) {
-    try {
-      listener(settings)
-    } catch (err) {
-      console.error('[reading-display-settings] listener failed:', err)
-    }
-  }
+  notifySettings(settings)
 }
 
 export function onReadingDisplaySettingsChange(fn: SettingsListener): () => void {
+  listenToOtherDocuments()
   listeners.push(fn)
   return () => {
     const idx = listeners.indexOf(fn)
     if (idx >= 0) listeners.splice(idx, 1)
+    if (listeners.length === 0) {
+      stopStorage?.()
+      stopStorage = null
+    }
   }
 }

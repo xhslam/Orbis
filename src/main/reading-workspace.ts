@@ -8,10 +8,7 @@ import {
   type PaperToRetellPayload,
   type RetellToPaperCardPayload,
 } from '../shared/reading-workspace'
-import {
-  addHighlight,
-  createArticleFromText,
-} from '../shared/reading/article'
+import { addHighlight, createArticleFromText } from '../shared/reading/article'
 import type { ReadingStore } from './reading/store'
 import { registeredPaperRole, trustedPaperUrl } from './paper/trust'
 import { getReadingMode, getReadingWorkspace, setReadingMode, showReadingWindow } from './window'
@@ -34,7 +31,7 @@ export function registerReadingWorkspaceIpc(deps?: { store?: ReadingStore }): vo
   ): { wc: Electron.WebContents; owner: BrowserWindow; role: 'reading' | 'history' | 'paper' } {
     const wc = event.sender
     const ws = getReadingWorkspace()
-    const owner = BrowserWindow.fromWebContents(wc) ?? (ws?.getOwner() ?? null)
+    const owner = BrowserWindow.fromWebContents(wc) ?? ws?.getOwner() ?? null
     const role = registeredPaperRole(wc)
     if (
       !owner ||
@@ -54,6 +51,33 @@ export function registerReadingWorkspaceIpc(deps?: { store?: ReadingStore }): vo
     }
     return { wc, owner, role }
   }
+
+  ipcMain.handle(WORKSPACE_CHANNELS.layout, (event, layout: unknown) => {
+    const { owner } = trusted(event, ['history'])
+    const value = layout as Record<string, unknown> | null
+    if (
+      !value ||
+      typeof value.visible !== 'boolean' ||
+      !['x', 'y', 'width', 'height'].every(
+        (key) =>
+          typeof value[key] === 'number' &&
+          Number.isFinite(value[key]) &&
+          value[key] >= 0 &&
+          value[key] <= 20000,
+      )
+    ) {
+      throw new Error('workspace: invalid layout')
+    }
+    const ws = getReadingWorkspace()
+    if (ws?.getOwner() !== owner) throw new Error('workspace: invalid owner')
+    ws.setLayout({
+      x: Math.round(value.x as number),
+      y: Math.round(value.y as number),
+      width: Math.round(value.width as number),
+      height: Math.round(value.height as number),
+      visible: value.visible,
+    })
+  })
 
   ipcMain.handle(WORKSPACE_CHANNELS.open, (event, mode: unknown) => {
     trusted(event, ['reading', 'history'])
@@ -115,11 +139,7 @@ export function registerReadingWorkspaceIpc(deps?: { store?: ReadingStore }): vo
     // Switch workspace mode to retell and open the article
     const ws = getReadingWorkspace()
     if (ws) {
-      ws.setMode('retell')
-      const owner = ws.getOwner()
-      if (!owner.isDestroyed()) {
-        owner.webContents.send(WORKSPACE_CHANNELS.openArticle, article.id)
-      }
+      await ws.openArticle(article.id)
     }
 
     return { ok: true, articleId: article.id }

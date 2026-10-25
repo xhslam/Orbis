@@ -1,3 +1,4 @@
+import type { HostTypography } from './hostTypography'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ExternalLinkDetail, LinkDetail, Renderer, TocItem, View } from 'foliate-js/view.js'
 import type { MarkPainter } from 'foliate-js/overlayer.js'
@@ -18,6 +19,7 @@ import { PasswordSheet } from '../overlays/PasswordSheet'
 import type { PageIntent } from './wheelPaging'
 
 export interface FoliateViewProps {
+  typography?: HostTypography | null | undefined
   /**
    * How the book is SET — WI-14.4's fifteen. Handed down whole, exactly as
    * `spacing` is: they are one contract, and fifteen props would be fifteen
@@ -137,6 +139,7 @@ export interface FoliateViewProps {
 }
 
 interface Settings {
+  typography?: HostTypography | null | undefined
   stepIdx: number
   /**
    * The white the PAGE carries, both sides together — see `pageMargins`.
@@ -200,6 +203,7 @@ export function applySettings(renderer: Renderer, settings: Settings): void {
  */
 export function readingVars(settings: Settings): Parameters<typeof applyBookVars>[1] {
   const base = {
+    typography: settings.typography,
     stepIdx: settings.stepIdx,
     theme: settings.theme,
     typeface: settings.typeface,
@@ -440,6 +444,7 @@ export function FoliateView({
   file,
   generation,
   stepIdx,
+  typography,
   measure,
   pageMargins,
   theme,
@@ -537,7 +542,7 @@ export function FoliateView({
    * the layout-effect commit, and the settings effect below — and a setting
    * added to two of the copies is exactly the stale-value defect the handlers
    * note describes (audit round 1, #484). */
-  const currentSettings: Settings = { stepIdx, measure, pageMargins, theme, typeface, spacing, align, brightness, contrast, animated, paginated, style }
+  const currentSettings: Settings = { typography, stepIdx, measure, pageMargins, theme, typeface, spacing, align, brightness, contrast, animated, paginated, style }
   const settings = useRef<Settings>(currentSettings)
   /* Through a ref for the same reason, and for one that is specific to it: the
    * saved position is derived from the book's content id, which resolves a few
@@ -780,7 +785,7 @@ export function FoliateView({
      * move the pips and not the page. Its identity is stable — the reducer
      * returns the SAME object when a setting has not moved — so depending on
      * the object cannot loop. */
-  }, [stepIdx, theme, typeface, spacing, align, brightness, contrast, style, animated, paginated, ready, generation, fontsReady])
+  }, [typography, stepIdx, theme, typeface, spacing, align, brightness, contrast, style, animated, paginated, ready, generation, fontsReady])
 
   /* THE GRID ALONE, and only the layout attributes for it.
    *

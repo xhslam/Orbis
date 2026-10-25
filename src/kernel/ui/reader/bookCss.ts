@@ -1,3 +1,4 @@
+import type { HostTypography } from './hostTypography'
 import type { MarkTint } from '../../core/marks'
 import type { MarkPalette } from './markPaint'
 import type { Align, ReadingStyle, SpacingIndices, Theme, Typeface } from '../state'
@@ -459,6 +460,7 @@ function absoluteUrls(cssText: string, base: string): string {
 }
 
 export interface BookCssOptions {
+  readonly typography?: HostTypography | null | undefined
   readonly stepIdx: number
   readonly theme: Theme
   readonly typeface: Typeface
@@ -533,6 +535,7 @@ export function bookVars({
   brightness,
   contrast,
   style,
+  typography,
 }: BookCssOptions): BookVars {
   const set: ReadingStyle = { ...DEFAULT_READING_STYLE, ...style }
   const step = readingStep(stepIdx)
@@ -549,7 +552,7 @@ export function bookVars({
    * face found their book had silently changed size and raised the step to
    * compensate, which changed their measure as well. Rounded, because a
    * fractional font-size lands text on half pixels. */
-  const size = Math.round(step.size * opticalScale(face))
+  const size = typography?.fontSize ?? Math.round(step.size * opticalScale(face))
   /* THE LINE BOX IS THE GRID, and everything else is measured against it.
    * Paragraph spacing is a multiple of it rather than a length so that opening
    * the leading opens the space between paragraphs with it — otherwise a reader
@@ -563,7 +566,7 @@ export function bookVars({
    * setting stopped at the prose. Same shape as F1, a control that appears
    * global and is not. */
   const lineScale = spacingAt('line', spacing.line)
-  const line = Math.round(step.line * lineScale)
+  const line = typography ? typography.fontSize * typography.lineHeight : Math.round(step.line * lineScale)
   /* IS THE PAGE DARK? Asked of the colour rather than of the theme's NAME.
      theme === 'night' was the test, in one place, and the moment a second
      place needed the same answer it became a fact stored twice — the next dark
@@ -591,7 +594,7 @@ export function bookVars({
        would mean two different things depending on the book. */
     '--paper-letter': `${spacingAt('letter', spacing.letter)}em`,
     '--paper-word': `${spacingAt('word', spacing.word)}em`,
-    '--paper-family': face.stack,
+    '--paper-family': typography?.fontFamily ?? face.stack,
     /* START, NEVER LEFT. The flush edge is on the left in English, on the right
        in Arabic and at the top in vertical Japanese: one behaviour, three
        appearances, and the document says which it is. Nothing here detects

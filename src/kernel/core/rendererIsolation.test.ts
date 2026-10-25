@@ -49,13 +49,22 @@ describe('the Orbis Paper renderer isolation boundary', () => {
     expect(nativeWindow).toMatch(/nodeIntegration:\s*false/)
     expect(nativeWindow).toMatch(/sandbox:\s*true/)
     const preload = read('../../preload/index.ts')
-    expect(preload).toMatch(/if\s*\(\(role === 'reading' \|\| role === 'history'\) && process\.isMainFrame\)/)
+    expect(preload).toMatch(
+      /if\s*\(\(role === 'reading' \|\| role === 'history'\) && process\.isMainFrame\)/,
+    )
     const ipc = read('../../main/paper/index.ts')
     expect(ipc).toContain('event.senderFrame !== sender.mainFrame')
     expect(ipc).toContain('trustedPaperUrl(sender.mainFrame.url')
     expect(ipc).toContain('registeredPaperRole(sender)')
     expect(nativeWindow).toContain("registerPaperWindow(window, 'history')")
-    expect(nativeWindow).toContain("registerPaperWindow(window, 'reading')")
+    // Both engines now live in views inside the history window, each with its own role.
+    const workspace = read('../../main/paper/workspace.ts')
+    expect(nativeWindow).toContain(
+      "new ReadingWorkspace(window, bridgeFor('paper'), bridgeFor('reading'))",
+    )
+    expect(workspace).toContain("const role = mode === 'paper' ? 'paper' : 'reading'")
+    expect(workspace).toContain('registerPaperView(this.owner, view.webContents, role)')
+    expect(ipc).toContain('rememberPaperRole(wc, role)')
   })
   it('does not expose arbitrary native commands or channels from the Paper bridge', () => {
     const preload = read('../../preload/paper.ts')
@@ -66,8 +75,29 @@ describe('the Orbis Paper renderer isolation boundary', () => {
     expect(paperRole(['--orbis-role=companion'])).toBeNull()
     expect(paperRole(['--orbis-role=reading', '--mochi-role=history'])).toBeNull()
     expect(paperRole(['--orbis-role=reading', '--mochi-role=reading'])).toBe('reading')
-    expect(trustedPaperUrl('http://localhost:5173/reading/index.html', 'reading', '/renderer', 'http://localhost:5173/')).toBe(true)
-    expect(trustedPaperUrl('http://evil.test/reading/index.html', 'reading', '/renderer', 'http://localhost:5173/')).toBe(false)
-    expect(trustedPaperUrl('http://localhost:5173/companion/index.html', 'reading', '/renderer', 'http://localhost:5173/')).toBe(false)
+    expect(
+      trustedPaperUrl(
+        'http://localhost:5173/reading/index.html',
+        'reading',
+        '/renderer',
+        'http://localhost:5173/',
+      ),
+    ).toBe(true)
+    expect(
+      trustedPaperUrl(
+        'http://evil.test/reading/index.html',
+        'reading',
+        '/renderer',
+        'http://localhost:5173/',
+      ),
+    ).toBe(false)
+    expect(
+      trustedPaperUrl(
+        'http://localhost:5173/companion/index.html',
+        'reading',
+        '/renderer',
+        'http://localhost:5173/',
+      ),
+    ).toBe(false)
   })
 })

@@ -95,7 +95,15 @@ app.whenReady().then(async()=>{
   ipcMain.handle('reading:voice:open',()=>{voiceOpens++;return {ok:true,session:'isolated-test',model:'test'}})
   ipcMain.handle('reading:voice:sdp',()=>({ok:true,answer:'test-answer'}))
   ipcMain.handle('reading:voice:close',()=>{voiceCloses++;return {ok:true}})
-  let win=api.showReadingWindow(),retell=win.webContents
+  let win=api.showReadingWindow()
+  const shell=win.webContents
+  let retell=await until(()=>webContents.getAllWebContents().find(w=>w.getURL().endsWith('/reading/index.html')),'Retell child document')
+  await until(()=>exists(shell,'#rail-retell'),'main window sidebar')
+  assert.equal(BrowserWindow.getAllWindows().length,1)
+  assert.equal(await js(shell,`!!document.querySelector('#rail-reading') && !!document.querySelector('#rail-retell') && !document.querySelector('[data-open-reading-mode]')`),true)
+  await click(shell,'#rail-retell')
+  await until(()=>js(shell,`document.querySelector('#rail-retell').getAttribute('aria-current')==='true'`),'Retell selected')
+  check('reading and retelling are parallel main-window destinations; no chooser or extra window')
   await until(()=>exists(retell,'#btn-paste-text'),'Retell UI ready')
   assert.equal(await js(retell,'typeof require'),'undefined')
   await click(retell,'#btn-paste-text');await fill(retell,'#paste-title','Retell paste fixture');await fill(retell,'#paste-content','First pasted paragraph.\n\nSecond pasted paragraph.');await click(retell,'#paste-submit')
@@ -107,10 +115,26 @@ app.whenReady().then(async()=>{
   await js(retell,`window.orbisWorkspace.setMode('paper')`)
   let paper=await until(()=>webContents.getAllWebContents().find(w=>w.getURL().endsWith('/paper/index.html')),'Paper native view')
   await until(()=>js(paper,`!![...document.querySelectorAll('button')].find(b=>b.textContent.includes('Add books'))`),'Paper root library')
-  assert.equal(win.contentView.children.filter(v=>v instanceof WebContentsView).length,1)
+  assert.equal(win.contentView.children.filter(v=>v instanceof WebContentsView).length,2)
+  assert.equal(BrowserWindow.getAllWindows().length,1)
+  await until(()=>js(shell,`document.querySelector('#rail-reading').getAttribute('aria-current')==='true'`),'Reading sidebar selected')
+  const contentBounds=await js(shell,`(()=>{const r=document.querySelector('#page-reading').getBoundingClientRect();return {x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)}})()`)
+  const paperView=win.contentView.children.find(v=>v.webContents===paper)
+  assert.deepEqual(paperView.getBounds(),contentBounds)
+  assert.ok(contentBounds.x>0,'sidebar must remain outside native content view')
+  await click(shell,'#rail-machine')
+  await until(()=>!paperView.getVisible(),'Paper hidden on settings page')
+  await click(shell,'#rail-reading')
+  await until(()=>paperView.getVisible(),'Paper restored inside main window')
+  await click(shell,'#rail-toggle')
+  await until(()=>paperView.getBounds().x<contentBounds.x,'content follows collapsed sidebar')
+  await click(shell,'#rail-toggle')
+  await until(()=>paperView.getBounds().x===contentBounds.x,'content follows expanded sidebar')
+  fs.writeFileSync(path.join(__dirname,'main-reading.png'),(await win.capturePage()).toPNG())
+  check('native content fits main column, preserves sidebar, and hides on settings')
   const paperId=paper.id
   assert.equal(await js(paper,'typeof window.orbisReading'),'undefined')
-  check('single native Paper view in reading owner; sandbox and API isolation')
+  check('persistent reading and retelling views in main window; sandbox and API isolation')
   const denied=await js(retell,`window.orbisPaper.session.acquire().then(()=>false,()=>true)`);assert.equal(denied,true)
   const competitor=new BrowserWindow({show:false,webPreferences:{preload:path.join(__dirname,'out/preload/index.js'),sandbox:true,contextIsolation:true,nodeIntegration:false,additionalArguments:['--orbis-role=paper']}})
   api.registerPaperView(competitor,competitor.webContents)
@@ -122,6 +146,38 @@ app.whenReady().then(async()=>{
   const pages = (target = paper) => js(target, `[...document.querySelectorAll('foliate-view')].flatMap(v=>v.renderer?.getContents?.()??[]).map(({doc,index})=>({index,text:doc.body?.textContent,pdf:!!doc.querySelector('.textLayer')}))`)
   await until(async()=> (await pages(paper)).some(p=>p.text?.includes('Orbis integration passage')),'EPUB text rendered')
   check('EPUB through real dialog/preload/fs/vault/Foliate',await pages())
+  // Shared typography travels from the settings document to both live engines.
+  const typography = { contentWidth: '36', pageMargin: 'normal', fontSize: 18, latinFont: 'georgia', cjkFont: 'songti', lineHeight: '1.8' }
+  const writeTypography = value => js(shell, `localStorage.setItem('orbis:reading-display-settings', ${JSON.stringify(JSON.stringify(value))}); true`)
+  const bookTypography = () => js(paper, `(() => {
+    const view=document.querySelector('foliate-view');
+    const doc=view.renderer.getContents().find(x=>x.doc.querySelector('p'))?.doc;
+    if(!doc)return null;
+    const p=doc.querySelector('p'); const css=doc.defaultView.getComputedStyle(p);
+    return { paragraphWidth:p.getBoundingClientRect().width, size:css.fontSize, line:css.lineHeight, family:css.fontFamily, variable:doc.documentElement.style.getPropertyValue('--paper-size'), max:view.renderer.getAttribute('max-inline-size') };
+  })()`)
+  await js(paper, `window.__beforeTypographyView=document.querySelector('foliate-view'); true`)
+  await writeTypography(typography)
+  await until(async()=> (await bookTypography())?.variable==='18px', 'host settings reach EPUB')
+  const narrow = await bookTypography()
+  await writeTypography({ ...typography, contentWidth: '60' })
+  await until(async()=> (await bookTypography())?.paragraphWidth > narrow.paragraphWidth + 100, 'wider EPUB prose')
+  const wide = await bookTypography()
+  assert.equal(wide.size,'18px')
+  assert.ok(wide.family.includes('Georgia'))
+  await writeTypography({ ...typography, contentWidth: '0', pageMargin: 'compact' })
+  await until(async()=> (await bookTypography())?.paragraphWidth > wide.paragraphWidth, 'unlimited prose uses available column')
+  const compact = await bookTypography()
+  await writeTypography({ ...typography, contentWidth: '0', pageMargin: 'extraWide' })
+  await until(async()=> (await bookTypography())?.paragraphWidth < compact.paragraphWidth - 100, 'page margins narrow prose')
+  await writeTypography({ ...typography, fontSize: 22 })
+  await until(async()=> (await bookTypography())?.size==='22px', 'exact chosen EPUB font size')
+  const resized = await bookTypography()
+  assert.equal(await js(paper, `document.querySelector('foliate-view')===window.__beforeTypographyView`),true)
+  assert.equal(resized.line,'39.6px')
+  await until(()=>js(retell, `document.querySelector('#reading-app').style.getPropertyValue('--reading-font-size')==='22px'`),'Retell receives shared settings without remount')
+  assert.equal(await js(retell,`document.querySelector('#reading-app').firstElementChild===window.__retellIdentity`),true)
+  check('shared settings change real EPUB paragraph width, margins, font, leading and live Retell', { narrow, wide, compact, resized })
   await js(paper,`window.__paperIdentity={view:document.querySelector('foliate-view'),renderer:document.querySelector('foliate-view').renderer};true`)
   await js(retell,`window.orbisWorkspace.setMode('retell')`)
   assert.equal(await js(retell,`document.querySelector('#reading-app').firstElementChild===window.__retellIdentity&&document.querySelector('#reading-app').textContent===window.__retellText`),true)
@@ -157,7 +213,11 @@ app.whenReady().then(async()=>{
   // Continue below as a named function so failures retain all intermediate artifacts.
   await finish({api,f,win,retell,paper,pages,openQueue,saveQueue,store,voice:()=>({voiceOpens,voiceCloses}),data})
   clearTimeout(timeout);fs.writeFileSync(path.join(__dirname,'result.json'),JSON.stringify(report,null,2));console.log('PAPER_WORKSPACE_SMOKE_OK',JSON.stringify(report));app.exit(0)
-}).catch(error=>{clearTimeout(timeout);report.errors.push(String(error.stack??error));fs.writeFileSync(path.join(__dirname,'result.json'),JSON.stringify(report,null,2));console.error('PAPER_WORKSPACE_SMOKE_FAILED',error);app.exit(1)})
+}).catch(async error=>{
+  for(const wc of webContents.getAllWebContents()) {
+    try { fs.writeFileSync(path.join(__dirname, `failure-${wc.id}.txt`), wc.getURL()+'\n'+await js(wc, 'document.body.innerText')); } catch {}
+  }
+  clearTimeout(timeout);report.errors.push(String(error.stack??error));fs.writeFileSync(path.join(__dirname,'result.json'),JSON.stringify(report,null,2));console.error('PAPER_WORKSPACE_SMOKE_FAILED',error);app.exit(1)})
 
 async function finish(ctx) {
   const { api, f, pages, openQueue, store, data } = ctx
@@ -197,12 +257,14 @@ async function finish(ctx) {
   // 4. Reopen reading window in paper mode
   await sleep(200)
   win = api.showReadingWindow('paper')
-  retell = win.webContents
-  const paperView = await until(() => win.contentView.children.find(v => v instanceof WebContentsView && !v.webContents.isDestroyed()), 'reopened Paper view')
+  retell = null
+  const paperView = await until(() => win.contentView.children.find(v => v instanceof WebContentsView && !v.webContents.isDestroyed() && v.webContents.getURL().endsWith('/paper/index.html')), 'reopened Paper view')
   paper = paperView.webContents
   await until(() => !paper.isLoading(), 'paper loaded')
   await until(() => js(paper, `document.querySelector('[data-theme="sepia"]') !== null`), 'persisted sepia theme restored')
   check('Reopened window restored theme setting from disk')
+  assert.equal(await js(paper, `JSON.parse(localStorage.getItem('orbis:reading-display-settings')).fontSize`),22)
+  check('shared reading typography persisted across main window reopen')
 
   // 5. Verify shelf and reopen EPUB for notes & cards restoration
   if (await exists(paper, 'button[aria-label="Library"]')) {
@@ -218,7 +280,8 @@ async function finish(ctx) {
   check('Persisted highlight and note restored across relaunch')
 
   // 6. Check Orbis Retell mode coexistence
-  await js(retell, `window.orbisWorkspace.setMode('retell')`)
+  api.showReadingWindow('retell')
+  retell=await until(()=>webContents.getAllWebContents().find(w=>w.getURL().endsWith('/reading/index.html')),'reopened Retell document')
   await until(() => exists(retell, '.article-row'), 'Retell home view active with stored articles')
   await click(retell, '.article-title-btn')
   await until(() => exists(retell, '#start-retell-btn'), 'Retell article view active')
@@ -228,12 +291,19 @@ async function finish(ctx) {
 
   // 7. Phase 3 Forward Link: Paper selection/marginalia -> Orbis Retell Practice
   await js(retell, `window.orbisWorkspace.setMode('paper')`)
-  if (!await exists(paper, 'button[aria-label="Practice retelling in Orbis"]')) {
-    if (await exists(paper, 'button[aria-label="Marginalia"]')) {
-      await click(paper, 'button[aria-label="Marginalia"]')
-    }
-  }
-  await until(() => js(paper, `!!document.querySelector('button[aria-label="Practice retelling in Orbis"]')`), 'Retell button in Paper Marginalia')
+  // The Retell command belongs to the passage selection toolbar, not the
+  // Marginalia pane. Explicitly select a passage after reopening the book.
+  await js(paper, `(() => {
+    const {doc}=document.querySelector('foliate-view').renderer.getContents().find(x=>x.doc.body.textContent.includes('Orbis integration passage'));
+    const walker=doc.createTreeWalker(doc.body,4); let n;
+    while((n=walker.nextNode())) if(n.textContent.includes('Orbis integration passage')) break;
+    const start=n.textContent.indexOf('Orbis integration passage');
+    const range=doc.createRange(); range.setStart(n,start); range.setEnd(n,start+25);
+    const selection=doc.defaultView.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+    n.parentElement.dispatchEvent(new doc.defaultView.PointerEvent('pointerup',{bubbles:true,pointerType:'mouse',button:0}));
+    return true;
+  })()`)
+  await until(() => js(paper, `!!document.querySelector('button[aria-label="Practice retelling in Orbis"]')`), 'Retell button for selected Paper passage')
 
   // Click "Practice retelling in Orbis" on the note in Marginalia
   await js(paper, `document.querySelector('button[aria-label="Practice retelling in Orbis"]').click(); true`)
@@ -241,7 +311,7 @@ async function finish(ctx) {
   // This calls window.orbisPaper.sendToRetell(...)
   // Main process switches workspace mode to 'retell' and sends openArticle
   await until(async () => {
-    const isRetell = await js(retell, `document.documentElement.dataset.readingMode === 'retell'`)
+    const isRetell = await js(win.webContents, `document.querySelector('#rail-retell').getAttribute('aria-current') === 'true'`)
     const hasArticle = await exists(retell, '#start-retell-btn')
     return isRetell && hasArticle
   }, 'Retell opened from Paper selection with start button')

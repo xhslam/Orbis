@@ -1,3 +1,4 @@
+import { PaperApp } from './reading-display'
 import { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react'
 import { createPaperClosePreparation } from './close'
 import { flushBeforeClose } from '../../kernel/core/beforeClose'
@@ -17,7 +18,6 @@ import {
 } from '../../kernel'
 import { createCard } from '../../kernel/core/cardStore'
 import {
-  App,
   openAppStorage,
   libraryFs,
   loadShelf,
@@ -98,7 +98,7 @@ async function main(root: HTMLElement): Promise<void> {
   createRoot(root).render(
     <StrictMode>
       <PaperErrorBoundary>
-      <App
+      <PaperApp
         services={services}
         fs={fs}
         shelfUnread={shelfUnread}

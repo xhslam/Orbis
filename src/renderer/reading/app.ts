@@ -65,7 +65,6 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
   const unsubDisplay = onReadingDisplaySettingsChange((settings) => {
     applyReadingDisplaySettings(settings, root)
     applyReadingDisplaySettings(settings)
-    render()
   })
 
   function cleanupSession(): void {

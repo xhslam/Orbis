@@ -1,3 +1,4 @@
+import { hostReadingGrid, type HostReadingDisplay } from '../reader/hostTypography'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Bookmark, ChevronLeft, ChevronRight, Library, Plus } from 'lucide-react'
 import type { ExternalLinkDetail, LinkDetail } from 'foliate-js/view.js'
@@ -138,6 +139,7 @@ function FootNotice({
 const ignore = (): void => {}
 
 export interface ReaderProps {
+  readingDisplay?: HostReadingDisplay | null | undefined
   state: AppState
   dispatch: AppDispatch
   platform: Platform
@@ -280,6 +282,7 @@ export interface ReaderProps {
 }
 
 export function Reader({
+  readingDisplay,
   state,
   dispatch,
   platform,
@@ -394,7 +397,9 @@ export function Reader({
   const inMargin = useMemo(() => marginMarks(marks.current), [marks.current])
 
   // The margin column is only reserved once the book has marks to put in it.
-  const grid = proseGrid(available, inMargin.length > 0, measureForStep(state.stepIdx))
+  const grid = readingDisplay
+    ? hostReadingGrid(available, inMargin.length > 0, readingDisplay)
+    : proseGrid(available, inMargin.length > 0, measureForStep(state.stepIdx))
   /* foliate centres the book inside its own container, and the container spans
    * the whole grid — so the text only lands on the measure track while the
    * outer tracks are equal. Once marks widen the margin, the difference is
@@ -838,6 +843,7 @@ export function Reader({
                       file={book.source}
                       generation={book.generation}
                       stepIdx={state.stepIdx}
+                      typography={readingDisplay}
                       /* The COMPUTED measure, not `measureForStep`. See
                          `applyLayout` — the renderer drew over the gutter for
                          as long as it derived this for itself. */

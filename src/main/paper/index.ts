@@ -20,8 +20,12 @@ export function registerPaperWindow(win: BrowserWindow, role: 'history' | 'readi
   attachHost?.(win, win.webContents)
 }
 
-export function registerPaperView(owner: BrowserWindow, wc: WebContents): void {
-  rememberPaperRole(wc, 'paper')
+export function registerPaperView(
+  owner: BrowserWindow,
+  wc: WebContents,
+  role: 'paper' | 'reading' = 'paper',
+): void {
+  rememberPaperRole(wc, role)
   owners.set(wc, owner)
   hosts.add(wc)
   attachHost?.(owner, wc)

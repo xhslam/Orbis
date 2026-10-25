@@ -4,6 +4,7 @@ export type ReadingMode = 'retell' | 'paper'
 export const WORKSPACE_BAR_HEIGHT = 52
 export const WORKSPACE_CHANNELS = {
   open: 'workspace:open',
+  layout: 'workspace:layout',
   setMode: 'workspace:setMode',
   getMode: 'workspace:getMode',
   modeChanged: 'workspace:modeChanged',
@@ -30,13 +31,24 @@ export interface RetellToPaperCardPayload {
   readonly title?: string | undefined
 }
 
+export interface WorkspaceLayout {
+  x: number
+  y: number
+  width: number
+  height: number
+  visible: boolean
+}
+
 export interface ReadingWorkspaceApi {
+  setLayout?(layout: WorkspaceLayout): Promise<void>
   open(mode: ReadingMode): Promise<void>
   setMode(mode: ReadingMode): Promise<void>
   getMode(): Promise<ReadingMode>
   onModeChanged(handler: (mode: ReadingMode) => void): () => void
   sendToRetell?(payload: PaperToRetellPayload): Promise<{ ok: boolean; articleId: string }>
-  saveToPaperCard?(payload: RetellToPaperCardPayload): Promise<{ ok: boolean; cardId?: string; error?: string }>
+  saveToPaperCard?(
+    payload: RetellToPaperCardPayload,
+  ): Promise<{ ok: boolean; cardId?: string; error?: string }>
   onOpenArticle?(handler: (articleId: string) => void): () => void
 }
 

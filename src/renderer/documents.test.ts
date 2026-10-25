@@ -119,6 +119,7 @@ const DOCUMENTS: readonly {
       'rail-toggle',
       'rail-machine',
       'rail-reading',
+      'rail-retell',
       'machine-lang-en',
       'machine-lang-zh',
       'machine-title',

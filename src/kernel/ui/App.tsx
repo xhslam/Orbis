@@ -1,3 +1,4 @@
+import type { HostReadingDisplay } from './reader/hostTypography'
 import { messageOf } from '../core/messageOf'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useOccasion } from './hooks/useOccasion'
@@ -90,6 +91,7 @@ import { audiobookSourceOf, useAudiobook } from './hooks/useAudiobook'
 const NO_BOOKS: readonly IndexedBook[] = Object.freeze([])
 
 export interface AppProps {
+  readingDisplay?: HostReadingDisplay | null | undefined
   /**
    * The window of diagnostics this run has recorded, for the Developer panel.
    *
@@ -200,6 +202,7 @@ const NOTICE_MS = 12_000
  * phone and the browser mount their own roots.
  */
 export function App({
+  readingDisplay,
   services,
   fs,
   shelfUnread = false,
@@ -2775,6 +2778,7 @@ export function App({
             foliate down mid-flight and loses the reading position — see the
             note on Library's own stacking. */}
         <Reader
+          readingDisplay={readingDisplay}
           libraryCount={library.books.length}
           saveFailure={library.saveFailure}
           onDismissSaveFailure={library.dismissSaveFailure}

@@ -5013,7 +5013,11 @@
             -->
             <button class="rail-row rail-reading" id="rail-reading" type="button">
               <span class="rail-tile" aria-hidden="true">📖</span>
-              <span class="rail-name">Reading & Retelling</span>
+              <span class="rail-name">Reading</span>
+            </button>
+            <button class="rail-row rail-reading" id="rail-retell" type="button">
+              <span class="rail-tile" aria-hidden="true">🗣</span>
+              <span class="rail-name">Retelling</span>
             </button>
             <button class="rail-row rail-machine" id="rail-machine" type="button">
               <span class="rail-tile" aria-hidden="true"></span>
@@ -5125,15 +5129,8 @@
             </div>
           </section>
 
-          <!-- Reading & Retelling: its own page -->
-          <section class="page reading" id="page-reading" hidden>
-            <div class="reading-app" style="padding: 36px; gap: 18px; align-items: flex-start; justify-content: center">
-              <h2>Reading workspace · 阅读工作区</h2>
-              <p>在同一个阅读窗口中切换复述训练与书库精读，保留各自的阅读状态。</p>
-              <button class="btn-primary" data-open-reading-mode="retell">Retell · 复述训练</button>
-              <button class="btn-secondary" data-open-reading-mode="paper">Paper · 书库精读</button>
-            </div>
-          </section>
+          <!-- Native reading and retelling views share this content column. -->
+          <section class="page" id="page-reading" aria-label="Reading content" hidden></section>
           <!--
           INSIDE THE PAGE COLUMN, not across the whole window.
 
