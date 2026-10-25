@@ -24,6 +24,13 @@ export interface FeedbackViewProps {
   readonly rounds?: readonly PracticeRound[]
   readonly selectedRoundIndex?: number
   readonly isAskingQuestion?: boolean
+  readonly cardSaveStatus?: {
+    readonly status: 'idle' | 'saving' | 'saved' | 'error'
+    readonly cardId?: string | undefined
+    readonly error?: string | undefined
+  } | undefined
+  readonly onSaveToPaperCard?: () => void | Promise<void>
+  readonly onSwitchToPaper?: () => void
   readonly onTryAgain: () => void
   readonly onReviewArticle: () => void
   readonly onFinishPractice: () => void
@@ -224,6 +231,19 @@ export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElem
             </section>
           </div>
 
+          ${
+            props.cardSaveStatus?.status === 'saved'
+              ? `<div class="paper-card-saved-banner" id="paper-card-saved-banner">
+                  <span class="paper-card-saved-text">✓ ${i18n.savedToPaperCard}</span>
+                  ${props.onSwitchToPaper ? `<button type="button" class="btn btn-link btn-sm" id="view-in-paper-btn">${i18n.viewInPaper}</button>` : ''}
+                </div>`
+              : props.cardSaveStatus?.status === 'error'
+                ? `<div class="paper-card-error-banner">
+                    <span>${escapeHtml(props.cardSaveStatus.error ?? 'Save failed')}</span>
+                  </div>`
+                : ''
+          }
+
           <!-- Interactive Action Controls -->
           <div class="feedback-actions-panel">
             <div class="actions-left">
@@ -233,6 +253,16 @@ export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElem
               <button type="button" class="btn btn-secondary" id="try-again-btn">
                 ${i18n.tryAgain}
               </button>
+              ${
+                props.onSaveToPaperCard
+                  ? `<button type="button" class="btn btn-secondary" id="save-to-paper-card-btn" ${props.cardSaveStatus?.status === 'saving' ? 'disabled' : ''}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                      <span>${props.cardSaveStatus?.status === 'saving' ? i18n.savingToPaperCard : i18n.saveToPaperCard}</span>
+                    </button>`
+                  : ''
+              }
             </div>
 
             <div class="actions-right">
@@ -279,6 +309,14 @@ export function renderFeedbackView(props: FeedbackViewProps, container: HTMLElem
 
   container.querySelector('#review-article-btn')?.addEventListener('click', () => {
     props.onReviewArticle()
+  })
+
+  container.querySelector('#save-to-paper-card-btn')?.addEventListener('click', () => {
+    props.onSaveToPaperCard?.()
+  })
+
+  container.querySelector('#view-in-paper-btn')?.addEventListener('click', () => {
+    props.onSwitchToPaper?.()
   })
 
   container.querySelector('#finish-practice-btn')?.addEventListener('click', () => {

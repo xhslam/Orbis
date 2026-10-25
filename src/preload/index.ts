@@ -147,6 +147,13 @@ const reading: OrbisReadingApi = {
   async closeVoice() {
     return (await ipcRenderer.invoke(guardReading('reading:voice:close'))) as { ok: boolean }
   },
+  async saveToPaperCard(payload: Parameters<NonNullable<OrbisReadingApi['saveToPaperCard']>>[0]) {
+    return (await ipcRenderer.invoke(guardReading('reading:saveToPaperCard'), payload)) as {
+      ok: boolean
+      cardId?: string
+      error?: string
+    }
+  },
 }
 
 const api: MochiApi = {

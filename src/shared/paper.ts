@@ -1,5 +1,6 @@
 import type { IndexFs } from '../kernel/core/bookIndex'
 import type { SizePort } from '../kernel/core/ports'
+import type { PaperToRetellPayload, RetellToPaperCardPayload } from './reading-workspace'
 
 export interface PaperDialogOptions {
   title?: string
@@ -27,6 +28,8 @@ export interface OrbisPaperApi {
     stat(path: string): Promise<{ size: number; isFile: boolean; isDirectory: boolean }>
   }
   openExternal(url: string): Promise<void>
+  sendToRetell?(payload: PaperToRetellPayload): Promise<{ ok: boolean; articleId: string }>
+  onCardCreation?(handler: (payload: RetellToPaperCardPayload) => Promise<{ id: string }>): () => void
   window: {
     minimize(): Promise<void>
     toggleMaximize(): Promise<void>

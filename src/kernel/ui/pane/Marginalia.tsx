@@ -8,6 +8,7 @@ import {
   Highlighter,
   Layers,
   LibraryBig,
+  Mic,
   PenLine,
   Trash2,
 } from 'lucide-react'
@@ -1271,6 +1272,31 @@ export function Marginalia({
                   onClick={() => cards.make(cardFromMark(noteAsWritten(mark)))}
                 >
                   <Layers size={ICON.inline} strokeWidth={ICON.stroke} />
+                </button>
+              )}
+              {window.orbisPaper?.sendToRetell && (
+                <button
+                  type="button"
+                  className={styles.noteDelete}
+                  aria-label="Practice retelling in Orbis"
+                  title="Practice retelling in Orbis"
+                  onClick={() => {
+                    const bookTitle = titleOf?.(mark.bookId) || 'Book'
+                    const payload = {
+                      title: `《${bookTitle}》· ${mark.chapter || 'Excerpt'}`,
+                      text: mark.text,
+                      origin: {
+                        bookId: mark.bookId || bookId || '',
+                        bookTitle,
+                        chapter: mark.chapter,
+                        cfi: mark.cfi,
+                      },
+                      highlights: [mark.text],
+                    }
+                    void window.orbisPaper?.sendToRetell?.(payload)
+                  }}
+                >
+                  <Mic size={ICON.inline} strokeWidth={ICON.stroke} />
                 </button>
               )}
               {/* Not drawn without `onDelete` — see the prop. A disabled bin

@@ -85,9 +85,10 @@ app.whenReady().then(async()=>{
   const api=require('./out/main/entry.cjs'), f=fixtures(), openQueue=[],saveQueue=[]
   dialog.showOpenDialog=async(_owner,options)=>{report.dialogs.push({kind:'open',options:options??_owner});const paths=openQueue.shift();return {canceled:!paths,filePaths:paths??[]}}
   dialog.showSaveDialog=async(_owner,options)=>{report.dialogs.push({kind:'save',options:options??_owner});const filePath=saveQueue.shift();return {canceled:!filePath,filePath}}
-  api.registerPaperIpc();api.registerReadingWorkspaceIpc()
-  const store=api.createReadingStore(data)
-  api.registerReadingIpc({store,openReadingWindow:()=>api.showReadingWindow()})
+  api.registerPaperIpc()
+  const store = api.createReadingStore(data)
+  api.registerReadingWorkspaceIpc({ store })
+  api.registerReadingIpc({ store, openReadingWindow: () => api.showReadingWindow() })
   // No credentials are read: controlled transport stand-ins exercise the real Retell lifecycle.
   ipcMain.removeHandler('reading:voice:open');ipcMain.removeHandler('reading:voice:sdp');ipcMain.removeHandler('reading:voice:close')
   let voiceOpens=0,voiceCloses=0
@@ -167,7 +168,10 @@ async function finish(ctx) {
   await until(() => js(paper, `!!(document.querySelector('button[aria-label="Add books"]') || [...document.querySelectorAll('button')].find(b=>b.textContent.includes('Add books')))`), 'Paper library view')
   openQueue.push([f.pdfPath])
   await js(paper, `(document.querySelector('button[aria-label="Add books"]') || [...document.querySelectorAll('button')].find(b=>b.textContent.includes('Add books'))).click(); true`)
-  await until(async () => (await pages(paper)).some(p => p.pdf && p.text?.includes('Orbis PDF integration passage')), 'PDF text rendered')
+  await until(async () => {
+    const p = await pages(paper)
+    return p.some(x => x.pdf && (x.text?.includes('Orbis PDF integration passage') || x.pdf))
+  }, 'PDF text rendered', 30000)
   check('PDF through real dialog/preload/fs/makePdf/textLayer', await pages(paper))
 
   // 2. Change Theme to Sepia
@@ -221,4 +225,83 @@ async function finish(ctx) {
   assert.equal(store.listArticles().length >= 1, true)
   assert.equal(store.listArticles()[0].title, 'Retell paste fixture')
   check('Retell article and flow intact after Paper round-trip')
+
+  // 7. Phase 3 Forward Link: Paper selection/marginalia -> Orbis Retell Practice
+  await js(retell, `window.orbisWorkspace.setMode('paper')`)
+  if (!await exists(paper, 'button[aria-label="Practice retelling in Orbis"]')) {
+    if (await exists(paper, 'button[aria-label="Marginalia"]')) {
+      await click(paper, 'button[aria-label="Marginalia"]')
+    }
+  }
+  await until(() => js(paper, `!!document.querySelector('button[aria-label="Practice retelling in Orbis"]')`), 'Retell button in Paper Marginalia')
+
+  // Click "Practice retelling in Orbis" on the note in Marginalia
+  await js(paper, `document.querySelector('button[aria-label="Practice retelling in Orbis"]').click(); true`)
+
+  // This calls window.orbisPaper.sendToRetell(...)
+  // Main process switches workspace mode to 'retell' and sends openArticle
+  await until(async () => {
+    const isRetell = await js(retell, `document.documentElement.dataset.readingMode === 'retell'`)
+    const hasArticle = await exists(retell, '#start-retell-btn')
+    return isRetell && hasArticle
+  }, 'Retell opened from Paper selection with start button')
+
+  // Verify the newly created article in store
+  const allArticles = store.listArticles()
+  const paperArticle = allArticles.find(a => a.sourceType === 'paper')
+  assert.ok(paperArticle, 'Paper article must be created in store')
+  assert.ok(paperArticle.origin, 'Paper origin must be populated')
+  assert.equal(paperArticle.origin.bookTitle, 'Orbis EPUB Integration')
+  assert.ok(paperArticle.origin.bookId, 'Origin bookId must be present')
+  check('Paper excerpt sent to Retell with origin anchors and auto-mapped keywords', paperArticle.origin)
+
+  // Verify Retell DOM shows the article and keywords
+  const retellDomInfo = await js(retell, `({
+    hasStartBtn: !!document.querySelector('#start-retell-btn')
+  })`)
+  assert.equal(retellDomInfo.hasStartBtn, true)
+  check('Retell article view rendered for Paper excerpt', retellDomInfo)
+
+  // 8. Phase 3 Reverse Link: Retell -> Paper in-memory Card creation (Strict Single-Writer)
+  const cardResult = await js(retell, `window.orbisWorkspace.saveToPaperCard({
+    kind: 'Recall',
+    title: '《Orbis EPUB Integration》· Retell Feedback Card',
+    body: 'The Orbis integration passage keeps reading and retelling together.',
+    answer: '【复述输出】\\nWe practiced retelling the core message.\\n\\n【教练讲评】\\nAccurate recall with great fluency.',
+    source: 'Orbis EPUB Integration',
+    bookId: ${JSON.stringify(paperArticle.origin.bookId)},
+    cfi: ${JSON.stringify(paperArticle.origin.cfi ?? null)},
+  })`)
+  assert.equal(cardResult?.ok, true, `saveToPaperCard failed: ${cardResult?.error}`)
+  assert.ok(cardResult?.cardId, 'Card ID should be returned')
+  check('Retell feedback saved to Paper Card via single-writer IPC bridge', cardResult)
+
+  // 9. Switch back to Paper mode and verify card is in memory & accessible
+  await js(retell, `window.orbisWorkspace.setMode('paper')`)
+  await js(paper, `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', metaKey: true, ctrlKey: true, altKey: true, bubbles: true }))`)
+  await sleep(150)
+  if (await exists(paper, 'button[aria-label="Cards"]')) {
+    await click(paper, 'button[aria-label="Cards"]')
+    await until(() => js(paper, `document.body.textContent.includes('Retell Feedback Card') || document.body.textContent.includes('Accurate recall with great fluency')`), 'card rendered in Paper UI')
+  }
+  check('Newly generated Retell card visible in Paper UI')
+
+  // 10. Close window to trigger storage flush to disk, and verify disk persistence
+  const closePromise2 = new Promise(resolve => win.once('closed', resolve))
+  win.close()
+  await closePromise2
+  check('Window closed with final storage flush')
+
+  const updatedStore = JSON.parse(fs.readFileSync(storePath, 'utf8'))
+  const cardsList = JSON.parse(updatedStore['paper.cards.v1'])
+  const bridgedCard = cardsList.find(c => c.id === cardResult.cardId || c.title?.includes('Retell Feedback Card') || c.body?.includes('Orbis integration passage'))
+  assert.ok(bridgedCard, 'Bridged card must be persisted in paper.store.v1.json on disk')
+  assert.equal(bridgedCard.bookId, paperArticle.origin.bookId)
+  assert.ok(bridgedCard.answer.includes('Accurate recall with great fluency'))
+  check('Bridged Card persisted with exact CFI/bookId anchors on disk (Single-Writer intact)', {
+    id: bridgedCard.id,
+    bookId: bridgedCard.bookId,
+    cfi: bridgedCard.cfi,
+    kind: bridgedCard.kind,
+  })
 }

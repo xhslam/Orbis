@@ -202,6 +202,10 @@ export const I18N = {
     evaluatingPlaceholder: 'Evaluating your retelling against article facts…',
     tryAgain: 'Try Again (Re-record)',
     reviewArticle: 'Review Article Full Text',
+    saveToPaperCard: 'Save to Paper Card',
+    savedToPaperCard: 'Saved to Paper Card successfully!',
+    viewInPaper: 'View in Paper →',
+    savingToPaperCard: 'Saving to Paper…',
 
     // Orbit Assistant & Multi-round Retelling
     mochiCoachName: 'Orbit Retelling Coach',
@@ -379,6 +383,10 @@ export const I18N = {
     evaluatingPlaceholder: '正在对比原文要点评估复述内容…',
     tryAgain: '再练一次（重新录音）',
     reviewArticle: '查看文章全文',
+    saveToPaperCard: '沉淀为 Paper 卡片',
+    savedToPaperCard: '已成功沉淀为 Paper 知识卡片！',
+    viewInPaper: '在 Paper 中查看 →',
+    savingToPaperCard: '正在保存到 Paper…',
 
     // Orbit Assistant & Multi-round Retelling
     mochiCoachName: 'Orbit 语音助教',

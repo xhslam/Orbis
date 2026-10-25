@@ -805,6 +805,9 @@ let readingWorkspace: ReadingWorkspace | null = null
 export function getReadingMode(): ReadingMode {
   return readingWorkspace?.getMode() ?? 'retell'
 }
+export function getReadingWorkspace(): ReadingWorkspace | null {
+  return readingWorkspace
+}
 export function setReadingMode(mode: ReadingMode): void {
   readingWorkspace?.setMode(mode)
 }

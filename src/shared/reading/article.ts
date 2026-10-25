@@ -1,4 +1,12 @@
-export type SourceType = 'markdown' | 'txt' | 'pdf' | 'url' | 'manual'
+export type SourceType = 'markdown' | 'txt' | 'pdf' | 'url' | 'manual' | 'paper'
+
+export interface PaperArticleOrigin {
+  readonly bookId: string
+  readonly bookTitle: string
+  readonly author?: string | undefined
+  readonly chapter?: string | undefined
+  readonly cfi?: string | null | undefined
+}
 
 export interface Paragraph {
   readonly id: string
@@ -49,6 +57,7 @@ export interface Article {
   readonly createdAt: number
   readonly updatedAt: number
   readonly lastPractice?: PracticeRecord | null | undefined
+  readonly origin?: PaperArticleOrigin | null | undefined
 }
 
 export interface ArticleSummary {
@@ -60,6 +69,7 @@ export interface ArticleSummary {
   readonly highlightCount: number
   readonly updatedAt: number
   readonly lastPractice?: PracticeRecord | null | undefined
+  readonly origin?: PaperArticleOrigin | null | undefined
 }
 
 export interface OrbisReadingApi {
@@ -78,6 +88,15 @@ export interface OrbisReadingApi {
     sessionToken: string,
   ): Promise<{ ok: true; answer: string } | { ok: false; problem: unknown }>
   closeVoice(): Promise<{ ok: boolean }>
+  saveToPaperCard?(payload: {
+    readonly kind: 'Recall' | 'Synthesis' | 'Idea' | 'Excerpt'
+    readonly body: string
+    readonly answer: string
+    readonly source: string
+    readonly bookId: string | null
+    readonly cfi: string | null
+    readonly title?: string | undefined
+  }): Promise<{ ok: boolean; cardId?: string; error?: string }>
 }
 
 export function splitIntoParagraphs(text: string): readonly Paragraph[] {
@@ -104,6 +123,7 @@ export function createArticleFromText(input: {
   readonly sourceType: SourceType
   readonly text: string
   readonly id?: string
+  readonly origin?: PaperArticleOrigin | null
 }): Article {
   const trimmed = input.text.trim()
   if (trimmed.length === 0) {
@@ -126,6 +146,7 @@ export function createArticleFromText(input: {
     highlights: [],
     createdAt: now,
     updatedAt: now,
+    origin: input.origin ?? null,
   }
 }
 

@@ -769,5 +769,68 @@ describe('Reading & Retelling UI Components', () => {
       expect(html).toContain('针对建议开始第 2 轮复述 →')
       expect(html).toContain('向 Orbit 语音提问 / 互动探讨')
     })
+
+    it('renders Save to Paper Card button and triggers handler when clicked', () => {
+      setLanguage('en')
+      const { element, getHtml, trigger } = createMockContainer()
+      const onSave = vi.fn()
+      const onSwitch = vi.fn()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 0 }
+      const props: FeedbackViewProps = {
+        article: {
+          ...sampleArticle,
+          origin: { bookId: 'book-1', bookTitle: 'Sample Book', cfi: 'epubcfi(/6/2)' },
+        },
+        scope,
+        coachTranscript: 'Great summary!',
+        userTranscript: 'My retelling',
+        state: 'ready',
+        session: null,
+        onSaveToPaperCard: onSave,
+        onSwitchToPaper: onSwitch,
+        onTryAgain: vi.fn(),
+        onReviewArticle: vi.fn(),
+        onFinishPractice: vi.fn(),
+      }
+
+      renderFeedbackView(props, element)
+      const html = getHtml()
+      expect(html).toContain('id="save-to-paper-card-btn"')
+      expect(html).toContain('Save to Paper Card')
+      trigger('#save-to-paper-card-btn', 'click')
+      expect(onSave).toHaveBeenCalledTimes(1)
+    })
+
+    it('renders saved banner and triggers onSwitchToPaper when clicked', () => {
+      setLanguage('en')
+      const { element, getHtml, trigger } = createMockContainer()
+      const onSwitch = vi.fn()
+      const scope: PracticeScope = { startParagraph: 0, endParagraph: 0 }
+      const props: FeedbackViewProps = {
+        article: {
+          ...sampleArticle,
+          origin: { bookId: 'book-1', bookTitle: 'Sample Book', cfi: 'epubcfi(/6/2)' },
+        },
+        scope,
+        coachTranscript: 'Great summary!',
+        userTranscript: 'My retelling',
+        state: 'ready',
+        session: null,
+        cardSaveStatus: { status: 'saved', cardId: 'card-123' },
+        onSaveToPaperCard: vi.fn(),
+        onSwitchToPaper: onSwitch,
+        onTryAgain: vi.fn(),
+        onReviewArticle: vi.fn(),
+        onFinishPractice: vi.fn(),
+      }
+
+      renderFeedbackView(props, element)
+      const html = getHtml()
+      expect(html).toContain('paper-card-saved-banner')
+      expect(html).toContain('Saved to Paper Card successfully!')
+      expect(html).toContain('View in Paper →')
+      trigger('#view-in-paper-btn', 'click')
+      expect(onSwitch).toHaveBeenCalledTimes(1)
+    })
   })
 })

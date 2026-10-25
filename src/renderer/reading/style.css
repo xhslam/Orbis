@@ -194,6 +194,12 @@
   border: var(--s-px) solid var(--rule);
 }
 
+.reading-app .type-pill.type-paper {
+  background: rgba(16, 185, 129, 0.12);
+  color: #065f46;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
 /* ---- Modals ------------------------------------------------------------ */
 
 .modal-dialog {
@@ -1390,6 +1396,45 @@
   background: rgba(168, 85, 247, 0.15);
   color: #7e22ce;
   animation: pulse-badge 1.5s infinite;
+}
+
+.paper-card-saved-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s2) var(--s4);
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--r-card);
+  color: #065f46;
+  font-size: var(--t-ui);
+}
+
+.paper-card-saved-text {
+  font-weight: var(--w-medium);
+}
+
+.paper-card-error-banner {
+  padding: var(--s2) var(--s4);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--r-card);
+  color: #991b1b;
+  font-size: var(--t-ui);
+}
+
+.reading-app .btn-link {
+  background: transparent;
+  border: none;
+  color: #059669;
+  font-weight: var(--w-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.reading-app .btn-link:hover {
+  color: #047857;
 }
 
 /* The native Paper view starts immediately below this fixed-height owner bar.
