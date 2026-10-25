@@ -22,6 +22,13 @@ export class ReadingWorkspace {
   getMode(): ReadingMode {
     return this.mode
   }
+  getOwner(): BrowserWindow {
+    return this.owner
+  }
+  getPaperWebContents(): Electron.WebContents {
+    if (!this.view) this.createPaper()
+    return this.view!.webContents
+  }
   setMode(mode: ReadingMode): void {
     if (mode === 'paper' && !this.view) this.createPaper()
     this.mode = mode

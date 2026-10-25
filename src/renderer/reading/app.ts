@@ -28,6 +28,7 @@ export type ViewState = 'home' | 'article' | 'retelling' | 'feedback'
 export interface ReadingApp {
   mount(): Promise<void>
   refresh(): Promise<void>
+  openArticle(id: string): Promise<void>
   cleanup(): void
 }
 
@@ -49,6 +50,11 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
   let currentRoundIndex = 1
   let selectedRoundIndex = 1
   let isAskingQuestion = false
+  let cardSaveStatus: {
+    status: 'idle' | 'saving' | 'saved' | 'error'
+    cardId?: string | undefined
+    error?: string | undefined
+  } = { status: 'idle' }
 
   const unsubLang = onLanguageChange(() => {
     render()
@@ -293,6 +299,7 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
               currentUserTranscript = ''
               liveTranscript = ''
               isAskingQuestion = false
+              cardSaveStatus = { status: 'idle' }
               currentView = 'retelling'
               sessionState = 'opening'
               render()
@@ -380,6 +387,9 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
           rounds,
           selectedRoundIndex,
           isAskingQuestion,
+          cardSaveStatus,
+          onSaveToPaperCard: handleSaveToPaperCard,
+          onSwitchToPaper: handleSwitchToPaper,
           onSelectRound: (roundNum) => {
             selectedRoundIndex = roundNum
             render()
@@ -405,6 +415,7 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
             currentUserTranscript = ''
             liveTranscript = ''
             isAskingQuestion = false
+            cardSaveStatus = { status: 'idle' }
             currentView = 'retelling'
             sessionState = 'ready'
             render()
@@ -445,6 +456,7 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
             currentUserTranscript = ''
             liveTranscript = ''
             isAskingQuestion = false
+            cardSaveStatus = { status: 'idle' }
             currentView = 'retelling'
             render()
             if (!session || (typeof sessionState === 'object' && 'error' in sessionState)) {
@@ -511,6 +523,83 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
     }
   }
 
+  async function handleSaveToPaperCard(): Promise<void> {
+    if (!currentArticle) return
+    const wsApi = window.orbisWorkspace
+    const readingApi = window.orbisReading
+    const saveFn = wsApi?.saveToPaperCard ?? readingApi?.saveToPaperCard
+    if (!saveFn) {
+      cardSaveStatus = { status: 'error', error: 'Paper workspace bridge unavailable' }
+      render()
+      return
+    }
+
+    cardSaveStatus = { status: 'saving' }
+    render()
+
+    const origin = currentArticle.origin
+    const lastRound = rounds[rounds.length - 1]
+    const spokenText = currentUserTranscript.trim() || lastRound?.userTranscript || ''
+    const feedbackText = liveTranscript.trim() || lastRound?.coachFeedback || ''
+
+    const originalScopeParagraphs = currentArticle.paragraphs
+      .slice(currentScope.startParagraph, currentScope.endParagraph + 1)
+      .map((p) => p.text)
+      .join('\n\n')
+
+    const cardBody = originalScopeParagraphs || currentArticle.title
+    const cardAnswer = feedbackText
+      ? `【复述输出】\n${spokenText}\n\n【教练讲评】\n${feedbackText}`
+      : spokenText || currentArticle.title
+
+    try {
+      const res = await saveFn({
+        kind: 'Recall',
+        title: currentArticle.title,
+        body: cardBody,
+        answer: cardAnswer,
+        source: origin?.bookTitle ?? currentArticle.source,
+        bookId: origin?.bookId ?? null,
+        cfi: origin?.cfi ?? null,
+      })
+
+      if (res.ok) {
+        cardSaveStatus = res.cardId ? { status: 'saved', cardId: res.cardId } : { status: 'saved' }
+      } else {
+        cardSaveStatus = { status: 'error', error: res.error || 'Failed to save card' }
+      }
+    } catch (err) {
+      cardSaveStatus = { status: 'error', error: err instanceof Error ? err.message : String(err) }
+    }
+    render()
+  }
+
+  function handleSwitchToPaper(): void {
+    window.orbisWorkspace?.setMode('paper').catch((err) => {
+      console.error('Failed to switch to paper mode:', err)
+    })
+  }
+
+  async function openArticle(id: string): Promise<void> {
+    if (!api) return
+    try {
+      const art = await api.getArticle(id)
+      if (art) {
+        currentArticle = art
+        currentScope = {
+          startParagraph: 0,
+          endParagraph: Math.max(0, art.paragraphs.length - 1),
+        }
+        articles = await api.listArticles()
+        cardSaveStatus = { status: 'idle' }
+        currentView = 'article'
+        render()
+      }
+    } catch (err) {
+      console.error('Failed to open article:', err)
+    }
+  }
+
   window.addEventListener('beforeunload', () => {
     cleanupSession()
   })
@@ -543,6 +632,7 @@ export function createReadingApp(root: HTMLElement): ReadingApp {
   return {
     mount,
     refresh,
+    openArticle,
     cleanup,
   }
 }

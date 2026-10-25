@@ -25,7 +25,7 @@ import {
 import { bookAccent } from '../../core/bookAccent'
 import { citation, type Source } from '../../core/citation'
 import { writeClipboard } from '../clipboard'
-import { marginMarks, type MarkAppearance } from '../../core/marks'
+import { isPlaced, marginMarks, type MarkAppearance } from '../../core/marks'
 import type { MarksView } from '../hooks/useMarks'
 import type { ForeignAnchor } from '../reader/markPaint'
 import type { SaveFailureView } from '../hooks/useLibrary'
@@ -1091,6 +1091,29 @@ export function Reader({
                     /* `selected!` for the reason the copy controls above give. */
                     onRemove={() => {
                       unmark(selected!)
+                      clearSelection()
+                    }}
+                    onRetell={() => {
+                      if (!selection || !window.orbisPaper?.sendToRetell || !book.bookId) return
+                      const text = selection.text
+                      const chapter = String(sourceFor(selection.sectionIndex) || '')
+                      const matching = marks.current
+                        .filter((m) => isPlaced(m) && m.text && text.includes(m.text))
+                        .map((m) => m.text)
+                      const bookTitle = book.meta?.title || 'Book'
+                      const payload = {
+                        title: `《${bookTitle}》· ${chapter || 'Excerpt'}`,
+                        text,
+                        origin: {
+                          bookId: book.bookId,
+                          bookTitle,
+                          author: book.meta?.author || undefined,
+                          chapter,
+                          cfi: selection.cfi,
+                        },
+                        highlights: matching,
+                      }
+                      void window.orbisPaper.sendToRetell(payload)
                       clearSelection()
                     }}
                   />

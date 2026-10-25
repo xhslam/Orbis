@@ -13,6 +13,12 @@ if (root) {
   const app = createReadingApp(root)
   void app.mount()
   if (api && bar) {
+    if (api.onOpenArticle) {
+      const unsubOpen = api.onOpenArticle((articleId) => {
+        void app.openArticle(articleId)
+      })
+      window.addEventListener('pagehide', unsubOpen, { once: true })
+    }
     const stop = bindReadingWorkspace(api, (mode) => {
       document.documentElement.dataset.readingMode = mode
       root.hidden = mode !== 'retell'

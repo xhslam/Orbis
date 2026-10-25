@@ -4336,7 +4336,7 @@ const startup = app.whenReady().then(
     */
     installMenu()
     registerPaperIpc()
-    registerReadingWorkspaceIpc()
+    registerReadingWorkspaceIpc({ store: readingStore })
 
     /*
       THE OTHER HALF OF THE RECONNECT, and the one no timer can do for itself.

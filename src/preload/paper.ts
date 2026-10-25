@@ -1,10 +1,12 @@
 import type { OrbisPaperApi } from '@shared/paper'
 import { PAPER_CLOSE } from '@shared/paper'
+import { WORKSPACE_CHANNELS, type PaperToRetellPayload, type RetellToPaperCardPayload } from '@shared/reading-workspace'
 
 type PaperTransport = {
   invoke(channel: string, ...args: unknown[]): Promise<unknown>
   send(channel: string, ...args: unknown[]): void
-  on(channel: string, listener: (event: unknown, token: string) => void): unknown
+  on(channel: string, listener: (...args: any[]) => void): unknown
+  removeListener?(channel: string, listener: (...args: any[]) => void): unknown
 }
 
 /** Explicit methods only: no renderer-controlled channel ever crosses this bridge. */
@@ -64,6 +66,22 @@ export function createPaperBridge(ipc: PaperTransport): OrbisPaperApi {
       stat: (path) => call('paper:externalFs:stat', path),
     },
     openExternal: (url) => call('paper:openExternal', url),
+    sendToRetell: (payload: PaperToRetellPayload) =>
+      call('workspace:sendToRetell', payload),
+    onCardCreation: (handler: (payload: RetellToPaperCardPayload) => Promise<{ id: string }>) => {
+      const listener = async (_event: unknown, requestId: string, payload: RetellToPaperCardPayload) => {
+        try {
+          const res = await handler(payload)
+          ipc.send('workspace:paperCreateCard:reply', requestId, { ok: true, cardId: res.id })
+        } catch (error) {
+          ipc.send('workspace:paperCreateCard:reply', requestId, { ok: false, error: String(error) })
+        }
+      }
+      ipc.on(WORKSPACE_CHANNELS.paperCreateCard, listener)
+      return () => {
+        ipc.removeListener?.(WORKSPACE_CHANNELS.paperCreateCard, listener)
+      }
+    },
     window: {
       minimize: () => call('paper:window:minimize'),
       toggleMaximize: () => call('paper:window:toggleMaximize'),

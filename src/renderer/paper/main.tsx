@@ -15,6 +15,7 @@ import {
   buildServices,
   serviceClients,
 } from '../../kernel'
+import { createCard } from '../../kernel/core/cardStore'
 import {
   App,
   openAppStorage,
@@ -77,7 +78,20 @@ async function main(root: HTMLElement): Promise<void> {
     dispose: () => {},
   })
   closePreparation = prepare
+  const unbindCardCreation = window.orbisPaper.onCardCreation?.(async (payload) => {
+    const card = createCard({
+      bookId: payload.bookId || '',
+      kind: payload.kind,
+      body: payload.body,
+      answer: payload.answer || '',
+      source: payload.source || '',
+      cfi: payload.cfi || null,
+    })
+    await services.cards.add(card)
+    return { id: card.id }
+  })
   window.addEventListener('pagehide', () => {
+    unbindCardCreation?.()
     lifetime.abort()
     composition.dispose()
   }, { once: true })

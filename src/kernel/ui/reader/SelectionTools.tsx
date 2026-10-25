@@ -12,6 +12,7 @@ import {
   Copy,
   Highlighter,
   MessageSquareQuote,
+  Mic,
   TextQuote,
   Trash2,
 } from 'lucide-react'
@@ -192,6 +193,8 @@ export interface SelectionToolsProps {
   /** Copy the passage with its source — see `citation`. */
   onCite: () => void
   onRemove: () => void
+  /** Send selected text into Orbis Retell workflow. */
+  onRetell?: (() => void) | undefined
 }
 
 /**
@@ -275,6 +278,7 @@ export function SelectionTools({
   onCopy,
   onCite,
   onRemove,
+  onRetell,
 }: SelectionToolsProps) {
   /* WHERE THE SELECTION IS AND HOW BIG THE STAGE IS, as ONE snapshot — see
    * `selectionGeometry.ts`, which says why the two cannot be measured apart.
@@ -679,6 +683,18 @@ export function SelectionTools({
                 away, exactly as another mark style is. */}
             {copyButton('Copy this passage')}
             {opener('copy', 'Copy options', 'More ways to copy this passage')}
+
+            {onRetell && (
+              <button
+                type="button"
+                className={styles.tool}
+                onClick={onRetell}
+                title="Practice retelling in Orbis"
+                aria-label="Practice retelling in Orbis"
+              >
+                <Mic size={ICON.control} strokeWidth={ICON.stroke} />
+              </button>
+            )}
 
             {marked && (
               <button

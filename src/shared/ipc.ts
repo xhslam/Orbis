@@ -1252,6 +1252,7 @@ export const READING_CHANNELS = [
   'reading:voice:open',
   'reading:voice:sdp',
   'reading:voice:close',
+  'reading:saveToPaperCard',
   'reading:open',
 ] as const
 
