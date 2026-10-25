@@ -51,7 +51,6 @@ import { type ShelfHandlers } from './sheet/row'
 import { installLogStamp } from '@shared/log'
 import { SAYS } from './main-says'
 import type { OrbisReadingApi } from '@shared/reading/article'
-import { isReadingMode } from '../../shared/reading-workspace'
 /*
   The settings panes' own copy, aliased because this file already has a `SAYS`.
 
@@ -95,6 +94,7 @@ import {
   railToggleEl,
   railMachineEl,
   railReadingEl,
+  railRetellEl,
   machineLangEnEl,
   machineLangZhEl,
   machineTitleEl,
@@ -991,13 +991,24 @@ function openCharacter(): void {
  * conversations now have the whole window. One tab strip, one subject.
  */
 let place: Place = 'cast'
-// All reading engines live in the singleton workspace, never in history.
-pageReadingEl.addEventListener('click', (event) => {
-  const button = (event.target as HTMLElement).closest<HTMLElement>('[data-open-reading-mode]')
-  const mode = button?.dataset.openReadingMode
-  if (isReadingMode(mode)) void window.orbisWorkspace?.open(mode).catch((error: unknown) => {
-    console.error('[history] reading workspace could not open', error)
-  })
+// The shell owns navigation; the native content views preserve both engines.
+function syncReadingLayout(): void {
+  const visible = place === 'reading' || place === 'retell'
+  const rect = pageReadingEl.getBoundingClientRect()
+  void window.orbisWorkspace
+    ?.setLayout?.({
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      visible,
+    })
+    .catch((error: unknown) => console.error('[history] content layout failed', error))
+}
+new ResizeObserver(syncReadingLayout).observe(pageReadingEl)
+window.orbisWorkspace?.onModeChanged((mode) => {
+  const destination = mode === 'paper' ? 'reading' : 'retell'
+  if (place !== destination) showPlace(destination)
 })
 
 function showPlace(next: Place): void {
@@ -1048,8 +1059,10 @@ function showPlace(next: Place): void {
   renderSubject()
   pageHersEl.hidden = !isHers(place)
   pageMachineEl.hidden = place !== 'machine'
-  pageReadingEl.hidden = place !== 'reading'
-  statusEl.hidden = place === 'reading'
+  const readingVisible = place === 'reading' || place === 'retell'
+  pageReadingEl.hidden = !readingVisible
+  statusEl.hidden = readingVisible
+  syncReadingLayout()
 
   // One body per view in the reading column, and one in the margin. Separate
   // elements rather than one that is rebuilt, so a transcript survives a trip
@@ -1117,7 +1130,6 @@ function showPlace(next: Place): void {
   // both come from disk and from another window's writes — so a cached copy is
   // stale the first time it matters.
   if (place === 'machine' || place === 'permits') void loadMachine()
-
 }
 
 /**
@@ -1195,6 +1207,11 @@ function renderPlaces(): void {
     })
     railReadingEl.addEventListener('click', () => {
       showPlace('reading')
+      void window.orbisWorkspace?.open('paper')
+    })
+    railRetellEl.addEventListener('click', () => {
+      showPlace('retell')
+      void window.orbisWorkspace?.open('retell')
     })
     railToggleEl.addEventListener('click', () => {
       const isCollapsed = railEl.classList.toggle('collapsed')
@@ -1256,6 +1273,7 @@ function renderPlaces(): void {
   }
   railMachineEl.setAttribute('aria-current', String(place === 'machine'))
   railReadingEl.setAttribute('aria-current', String(place === 'reading'))
+  railRetellEl.setAttribute('aria-current', String(place === 'retell'))
 }
 
 function updateRailToggleState(isCollapsed: boolean): void {
@@ -1276,8 +1294,11 @@ function updateI18nSurfaces(): void {
   updateRailToggleState(railEl.classList.contains('collapsed'))
 
   const readingName = railReadingEl.querySelector('.rail-name')
-  if (readingName) readingName.textContent = isZh ? '阅读与复述' : 'Reading & Retelling'
-  railReadingEl.title = isZh ? '阅读与复述' : 'Reading & Retelling'
+  if (readingName) readingName.textContent = isZh ? '阅读' : 'Reading'
+  railReadingEl.title = isZh ? '阅读' : 'Reading'
+  const retellName = railRetellEl.querySelector('.rail-name')
+  if (retellName) retellName.textContent = isZh ? '复述' : 'Retelling'
+  railRetellEl.title = isZh ? '复述' : 'Retelling'
 
   const machineName = railMachineEl.querySelector('.rail-name')
   if (machineName) machineName.textContent = isZh ? '本机设置' : 'This machine'

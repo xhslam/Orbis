@@ -725,6 +725,7 @@ export function showHistoryWindow(): BrowserWindow {
   })
   registerPaperWindow(window, 'history')
   history = window
+  readingWorkspace = new ReadingWorkspace(window, bridgeFor('paper'), bridgeFor('reading'))
   /*
     Written when it MOVES, not when it closes.
 
@@ -790,6 +791,7 @@ export function showHistoryWindow(): BrowserWindow {
   window.on('close', rememberNow)
   window.on('closed', () => {
     history = null
+    readingWorkspace = null
   })
   letDevToolsInspect(window.webContents)
   bringForward(window)
@@ -797,8 +799,6 @@ export function showHistoryWindow(): BrowserWindow {
   loadRenderer(window, 'history')
   return window
 }
-
-let readingWindow: BrowserWindow | null = null
 
 let readingWorkspace: ReadingWorkspace | null = null
 
@@ -812,43 +812,12 @@ export function setReadingMode(mode: ReadingMode): void {
   readingWorkspace?.setMode(mode)
 }
 
+/** Legacy entry points (tray, shortcuts, IPC) now navigate the main window. */
 export function showReadingWindow(mode: ReadingMode = 'retell'): BrowserWindow {
-  if (readingWindow !== null && !readingWindow.isDestroyed()) {
-    readingWorkspace?.setMode(mode)
-    if (readingWindow.isMinimized()) readingWindow.restore()
-    bringForward(readingWindow)
-    return readingWindow
-  }
-
-  const primary = screen.getPrimaryDisplay().workArea
-  const width = Math.min(1200, primary.width - 80)
-  const height = Math.min(800, primary.height - 80)
-
-  const taskbarIcon = windowIcon()
-  const window = new BrowserWindow({
-    width,
-    height,
-    minWidth: 900,
-    minHeight: 600,
-    title: 'Orbis — Reading & Retelling',
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#08080a' : '#f8f9fa',
-    skipTaskbar: false,
-    webPreferences: bridgeFor('reading'),
-    ...(taskbarIcon === null ? {} : { icon: taskbarIcon }),
-  })
-
-  registerPaperWindow(window, 'reading')
-  readingWindow = window
-  readingWorkspace = new ReadingWorkspace(window, bridgeFor('paper'))
-  readingWorkspace.setMode(mode)
-  window.on('closed', () => {
-    readingWindow = null
-    readingWorkspace = null
-  })
-
-  letDevToolsInspect(window.webContents)
-  bringForward(window)
-  loadRenderer(window, 'reading')
+  const window = showHistoryWindow()
+  const open = () => readingWorkspace?.setMode(mode)
+  if (window.webContents.isLoading()) window.webContents.once('did-finish-load', open)
+  else open()
   return window
 }
 

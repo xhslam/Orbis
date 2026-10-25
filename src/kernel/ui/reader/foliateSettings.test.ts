@@ -225,3 +225,17 @@ describe('applySettings', () => {
     expect(renderer.attributes.get('max-inline-size')).toBeTruthy()
   })
 })
+
+
+describe('host-wide reading typography', () => {
+  it('passes exact host typography into book variables without replacing the book', () => {
+    const doc = document.implementation.createHTMLDocument('Host book')
+    const renderer = fakeRenderer({ getContents: () => [{ doc, index: 0 }] })
+    const typography = { fontSize: 22, fontFamily: 'Georgia, "Songti SC", serif', lineHeight: 1.8 }
+    applySettings(renderer, settings({ typography, measure: 792 }))
+    expect(doc.documentElement.style.getPropertyValue('--paper-size')).toBe('22px')
+    expect(doc.documentElement.style.getPropertyValue('--paper-family')).toBe(typography.fontFamily)
+    expect(doc.documentElement.style.getPropertyValue('--paper-line')).toBe('39.6px')
+    expect(renderer.attributes.get('max-inline-size')).toBe('880px')
+  })
+})

@@ -86,6 +86,7 @@ export const railToggleEl = need('rail-toggle', HTMLButtonElement)
 export const railMachineEl = need('rail-machine', HTMLButtonElement)
 
 /** The rail's row for Reading & Retelling. */
+export const railRetellEl = need('rail-retell', HTMLButtonElement)
 export const railReadingEl = need('rail-reading', HTMLButtonElement)
 
 /** Language switch buttons and header text in This Machine page. */

@@ -117,6 +117,39 @@ function draw(over: {
   return { onGoTo }
 }
 
+describe('retelling shortcut', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('offers a shortcut directly below each highlighted passage and sends that passage to retelling', () => {
+    const sendToRetell = vi.fn().mockResolvedValue({ ok: true, articleId: 'article-1' })
+    vi.stubGlobal('orbisPaper', { sendToRetell })
+    const mark = ANNOTATION({ bookId: 'other-book', text: 'A passage to retell.' })
+    const second = ANNOTATION({ id: 'm2', text: 'Another passage.' })
+    const { onGoTo } = draw({ all: [mark, second], allBookmarks: [BOOKMARK()] })
+
+    const buttons = screen.getAllByRole('button', { name: 'Go to retelling' })
+    expect(buttons).toHaveLength(2)
+    const passage = rowFor(mark.text)
+    const shortcut = within(passage.parentElement!).getByRole('button', { name: 'Go to retelling' })
+    expect(passage.nextElementSibling?.contains(shortcut)).toBe(true)
+    fireEvent.click(shortcut)
+    expect(onGoTo).not.toHaveBeenCalled()
+    expect(sendToRetell).toHaveBeenCalledWith({
+      title: '《Ulysses》· Loomings',
+      text: mark.text,
+      origin: { bookId: mark.bookId, bookTitle: 'Ulysses', chapter: mark.chapter, cfi: mark.cfi },
+      highlights: [mark.text],
+    })
+    fireEvent.click(within(rowFor(second.text).parentElement!).getByRole('button', { name: 'Go to retelling' }))
+    expect(sendToRetell).toHaveBeenLastCalledWith(expect.objectContaining({ text: second.text }))
+  })
+
+  it('does not show a shortcut when the host cannot open retelling', () => {
+    draw({ all: [ANNOTATION()] })
+    expect(screen.queryByRole('button', { name: 'Go to retelling' })).toBeNull()
+  })
+})
+
 /** The jump control on a mark row is the button carrying the mark's own text. */
 const rowFor = (text: string) => screen.getByRole('button', { name: new RegExp(text, 'i') })
 

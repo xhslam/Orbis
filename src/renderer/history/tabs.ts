@@ -27,7 +27,7 @@
  * fails before any assertion runs, because the suite is node with no DOM
  * emulator. The wrapping is the half people get wrong and it needs no DOM.
  */
-export type Place = 'cast' | 'archive' | 'permits' | 'machine' | 'reading'
+export type Place = 'cast' | 'archive' | 'permits' | 'machine' | 'reading' | 'retell'
 
 /**
  * A view on her page.

@@ -8,7 +8,7 @@ import {
   Highlighter,
   Layers,
   LibraryBig,
-  Mic,
+  Speech,
   PenLine,
   Trash2,
 } from 'lucide-react'
@@ -1212,6 +1212,34 @@ export function Marginalia({
             <span className={styles.noteBody}>{mark.text}</span>
           </JumpButton>
 
+          {window.orbisPaper?.sendToRetell && (
+            <div className={styles.notePassageActions}>
+              <button
+                type="button"
+                className={styles.noteRetell}
+                aria-label="Go to retelling"
+                title="Go to retelling"
+                onClick={() => {
+                  const bookTitle = titleOf?.(mark.bookId) || 'Book'
+                  const payload = {
+                    title: `《${bookTitle}》· ${mark.chapter || 'Excerpt'}`,
+                    text: mark.text,
+                    origin: {
+                      bookId: mark.bookId || bookId || '',
+                      bookTitle,
+                      chapter: mark.chapter,
+                      cfi: mark.cfi,
+                    },
+                    highlights: [mark.text],
+                  }
+                  void window.orbisPaper?.sendToRetell?.(payload)
+                }}
+              >
+                <Speech size={ICON.inline} strokeWidth={ICON.stroke} />
+              </button>
+            </div>
+          )}
+
           {/* WITHOUT `setNote` THE NOTE IS TEXT, not a control. Offering the
               editor to a session that cannot write means the reader types a
               note, commits it, and watches it disappear — the refusal arrives
@@ -1272,31 +1300,6 @@ export function Marginalia({
                   onClick={() => cards.make(cardFromMark(noteAsWritten(mark)))}
                 >
                   <Layers size={ICON.inline} strokeWidth={ICON.stroke} />
-                </button>
-              )}
-              {window.orbisPaper?.sendToRetell && (
-                <button
-                  type="button"
-                  className={styles.noteDelete}
-                  aria-label="Practice retelling in Orbis"
-                  title="Practice retelling in Orbis"
-                  onClick={() => {
-                    const bookTitle = titleOf?.(mark.bookId) || 'Book'
-                    const payload = {
-                      title: `《${bookTitle}》· ${mark.chapter || 'Excerpt'}`,
-                      text: mark.text,
-                      origin: {
-                        bookId: mark.bookId || bookId || '',
-                        bookTitle,
-                        chapter: mark.chapter,
-                        cfi: mark.cfi,
-                      },
-                      highlights: [mark.text],
-                    }
-                    void window.orbisPaper?.sendToRetell?.(payload)
-                  }}
-                >
-                  <Mic size={ICON.inline} strokeWidth={ICON.stroke} />
                 </button>
               )}
               {/* Not drawn without `onDelete` — see the prop. A disabled bin

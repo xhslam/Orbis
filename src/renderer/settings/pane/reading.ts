@@ -212,8 +212,8 @@ export const READING: Pane = {
     return [
       field(FIELDS.readingWidth, view, readingWidth, {
         note: isZh
-          ? '精读与复述正文的最大显示宽度（参考 vmark 编辑器规范）。'
-          : 'Maximum width for reading & retelling content (referencing vmark editor width).',
+          ? '阅读与复述正文的最大宽度，修改后即时生效；实际宽度受窗口和注释栏限制。'
+          : 'Maximum prose width in reading and retelling. Applies immediately, within the available window and note lanes.',
       }),
       field(FIELDS.readingMargin, view, readingMargin, {
         note: isZh
@@ -236,7 +236,9 @@ export const READING: Pane = {
           : 'Font family for Chinese / CJK text (including PingFang, Songti, Kaiti, Noto Serif CJK, Source Han Sans).',
       }),
       field(FIELDS.readingLineHeight, view, readingLineHeight, {
-        note: isZh ? '段落正文的行间距倍率。' : 'Line height ratio for reading & retelling text.',
+        note: isZh
+          ? '正文行间距倍率。PDF 等固定版式不支持重排字体、字号或行高。'
+          : 'Prose line height. Fixed-layout books such as PDFs cannot reflow fonts, sizes or line height.',
       }),
       resetWrap,
     ]
