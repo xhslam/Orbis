@@ -19,6 +19,7 @@ import { layoutFor, FEET_FROM_TOP } from '@shared/avatar-layout'
 import { bodyOf, boxFor, padFor } from './her-geometry'
 import { roomOnScreen, sidesFor } from './screen-room'
 import { padChange } from './pad-change'
+import { statusCovers } from './status-position'
 
 /**
  * Her, on screen.
@@ -723,6 +724,15 @@ export function showFace(canvas: HTMLCanvasElement): Face {
   // chip being visible: its rectangle is only solid while it is, and acting on
   // a click there when it is not would be a button hidden in empty desktop.
   /** Which control a point is on, if any. */
+  function hitsStatus(x: number, y: number): boolean {
+    const label = canvas.ownerDocument.querySelector('#app')
+    return (
+      label !== null &&
+      label.textContent !== '' &&
+      statusCovers(label.getBoundingClientRect(), x, y)
+    )
+  }
+
   function hitsControls(x: number, y: number): 'copy' | 'close' | 'history' | null {
     const found = bubble.controls()
     if (found === null || !showingWords) return null
@@ -760,6 +770,7 @@ export function showFace(canvas: HTMLCanvasElement): Face {
    * desktop.
    */
   window.addEventListener('mousedown', (event) => {
+    if (hitsStatus(event.clientX, event.clientY)) return
     if (event.button !== 0) return
     if (!avatar.hitTest(event.clientX, event.clientY)) return
     // Before the grab, so the frame that follows is already solid — see
@@ -811,6 +822,7 @@ export function showFace(canvas: HTMLCanvasElement): Face {
   window.addEventListener(
     'wheel',
     (event) => {
+      if (hitsStatus(event.clientX, event.clientY)) return
       if (!showingWords) return
       if (!bubble.covers(event.clientX, event.clientY)) return
       event.preventDefault()
@@ -821,12 +833,14 @@ export function showFace(canvas: HTMLCanvasElement): Face {
   )
 
   window.addEventListener('contextmenu', (event) => {
+    if (hitsStatus(event.clientX, event.clientY)) return
     event.preventDefault()
     if (!avatar.hitTest(event.clientX, event.clientY)) return
     window.mochi.menu()
   })
 
   window.addEventListener('click', (event) => {
+    if (hitsStatus(event.clientX, event.clientY)) return
     /**
      * Asleep, a click on her wakes her — and nothing else here runs.
      *
@@ -1076,7 +1090,8 @@ export function showFace(canvas: HTMLCanvasElement): Face {
     }
 
     const at = pointerOnWindow()
-    const onHer = at !== null && avatar.hitTest(at.x, at.y)
+    const onLabel = at !== null && hitsStatus(at.x, at.y)
+    const onHer = !onLabel && at !== null && avatar.hitTest(at.x, at.y)
 
     /**
      * ONE way into her conversations at a time, never two.
@@ -1221,7 +1236,7 @@ export function showFace(canvas: HTMLCanvasElement): Face {
       else avatar.playMotion(ambient)
     }
 
-    const on = dragging || onHer || onChip || onControls
+    const on = dragging || onHer || onChip || onControls || onLabel
     if (on !== solid) {
       solid = on
       window.mochi.report({ kind: 'pointer', onHer: on })

@@ -62,6 +62,8 @@ export interface Problems {
   all(): readonly Problem[]
   /** How many, for a badge that has no room for more than a number. */
   count(): number
+  /** Resolve only the recovered subsystem, retaining unrelated problems. */
+  resolve(area: string, subject: string | null): void
   /** Everything from one launch is stale once the thing is fixed and reloaded. */
   clear(): void
   /**
@@ -117,6 +119,15 @@ export function createProblems(now: () => number = Date.now): Problems {
     },
     all: () => [...kept].reverse(),
     count: () => kept.length,
+    resolve: (area, subject) => {
+      const before = kept.length
+      for (let i = kept.length - 1; i >= 0; i -= 1) {
+        if (kept[i]?.area === area && kept[i]?.subject === subject) kept.splice(i, 1)
+      }
+      if (kept.length !== before) {
+        for (const watcher of watchers) watcher(kept.length)
+      }
+    },
     clear: () => {
       kept.length = 0
       for (const watcher of watchers) watcher(0)

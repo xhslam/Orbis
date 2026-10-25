@@ -37,7 +37,7 @@ const MAIN = readFileSync(join(process.cwd(), 'src', 'main', 'index.ts'), 'utf8'
 
 /** The body of `checkCredentialNow`, with nothing after it. */
 function theCheck(): string {
-  const from = MAIN.indexOf('function checkCredentialNow(): void {')
+  const from = MAIN.indexOf('async function checkCredentialNow(): Promise<boolean> {')
   expect(from, 'checkCredentialNow is gone').toBeGreaterThan(-1)
   const body = MAIN.slice(from)
   return body.slice(0, body.indexOf('\n}\n') + 2)
@@ -48,17 +48,17 @@ describe('the borrowed credential is judged before she needs it', () => {
     // Beside `checkCodexNow` and not instead of it: they answer different
     // questions. One asks whether the CLI runs, this asks whether the token it
     // left behind is one the service will still take.
-    const ready = MAIN.indexOf('void checkCodexNow()')
-    const credential = MAIN.indexOf('checkCredentialNow()', ready)
-    expect(ready).toBeGreaterThan(-1)
-    expect(credential).toBeGreaterThan(ready)
+    const credential = MAIN.search(/void checkCredentialNow\(\)\s*\.then\(/)
+    const ready = MAIN.indexOf('checkCodexNow()', credential)
+    expect(credential).toBeGreaterThan(-1)
+    expect(ready).toBeGreaterThan(credential)
   })
 
   it('asks the question with the reader that already knows the answer', () => {
     // No new diagnosis logic. `readBearer` distinguishes no-auth-file from
     // unreadable from no-token from stale-token, and re-deriving any of that
     // here would be a second opinion that can disagree with the first.
-    expect(theCheck()).toContain('readBearer()')
+    expect(theCheck()).toContain('await voiceAccess.read()')
   })
 
   it('says it in the words that carry the remedy', () => {
@@ -113,7 +113,37 @@ describe('the borrowed credential is judged before she needs it', () => {
     // The ordinary case is a usable token, and it must cost nothing: no note,
     // no window, no log line. A check that announced itself on success would be
     // trained out of within a week.
-    expect(theCheck()).toContain('if (bearer.ok) return')
+    const check = theCheck()
+    expect(check).toContain('if (bearer.ok) return true')
+    expect(check.indexOf('return')).toBeLessThan(check.indexOf('problems.note('))
+  })
+
+  it('shares the recovery service across both voice entry points', () => {
+    const reading = readFileSync(join(process.cwd(), 'src/main/reading/ipc.ts'), 'utf8')
+    const open = MAIN.slice(MAIN.indexOf("answer('voice:open'"))
+    expect(open.slice(0, open.indexOf('nextSession.opened()'))).toContain(
+      'await voiceAccess.mint()',
+    )
+    expect(reading).toContain('await voiceAccess.mint()')
+    expect(reading).not.toContain('readBearer(')
+  })
+
+  it('rejects a stale open before it can update status or the negotiation slot', () => {
+    const open = MAIN.slice(MAIN.indexOf("answer('voice:open'"))
+    expect(open).toContain('const current = voiceOpening.begin()')
+    expect(open.indexOf('if (!current())')).toBeLessThan(open.indexOf('cannotSpeak = why'))
+    expect(open.indexOf('if (!current())')).toBeLessThan(open.indexOf('mint.hold('))
+    expect(MAIN).toContain('voiceOpening.cancel()')
+  })
+
+  it('rechecks the voice credential before updating settings and can resume a recovered companion', () => {
+    const recheck = MAIN.slice(MAIN.indexOf("answer('settings:codex-recheck'"))
+    const body = recheck.slice(0, recheck.indexOf('\n})'))
+    expect(body).toContain('await checkCredentialNow()')
+    expect(body).toContain('!resting.asleep')
+    expect(body).toContain('__mochi_reconnect__')
+    expect(theCheck()).not.toContain('cannotSpeak = null')
+    expect(MAIN).toContain("problems.resolve('codex', 'voice-credential')")
   })
 
   it('cannot stop the app starting', () => {

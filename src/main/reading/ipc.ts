@@ -7,7 +7,8 @@ import {
   type Article,
   type PracticeRecord,
 } from '../../shared/reading/article'
-import { mintEphemeralKey, readBearer, exchangeSdp } from '../voice/credential'
+import { describeProblem, exchangeSdp } from '../voice/credential'
+import { voiceAccess } from '../voice/access'
 import { createMintSlot } from '../voice/mint-slot'
 
 export function registerReadingIpc(deps: {
@@ -99,10 +100,13 @@ export function registerReadingIpc(deps: {
   })
 
   ipcMain.handle('reading:voice:open', async () => {
-    const bearer = readBearer()
-    if (!bearer.ok) return { ok: false, problem: bearer.problem }
-    const minted = await mintEphemeralKey({ bearer: bearer.value })
-    if (!minted.ok) return { ok: false, problem: minted.problem }
+    const minted = await voiceAccess.mint()
+    if (!minted.ok) {
+      return {
+        ok: false,
+        problem: { kind: minted.problem.kind, message: describeProblem(minted.problem) },
+      }
+    }
     const token = mintSlot.hold(minted.value)
     deps.pauseCompanion?.()
     return { ok: true, session: token, model: minted.value.model }
@@ -126,7 +130,10 @@ export function registerReadingIpc(deps: {
       minted: claim.value,
     })
     if (!exchanged.ok) {
-      return exchanged
+      return {
+        ok: false,
+        problem: { kind: exchanged.problem.kind, message: describeProblem(exchanged.problem) },
+      }
     }
     return { ok: true, answer: exchanged.value }
   })

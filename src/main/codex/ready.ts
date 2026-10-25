@@ -110,7 +110,13 @@ export async function checkCodexNow(): Promise<SettingsCodex> {
   if (status.kind !== 'ready') {
     // Loud, and reported. Without a usable Codex she cannot look anything up,
     // and the failure otherwise presents as her declining to help.
-    problems.note('codex', null, `${CODEX_SAYS[readinessOf(status)]} ${remedySentence(status)}`)
+    problems.note(
+      'codex',
+      'readiness',
+      `${CODEX_SAYS[readinessOf(status)]} ${remedySentence(status)}`,
+    )
+  } else {
+    problems.resolve('codex', 'readiness')
   }
   return codexForWindow()
 }

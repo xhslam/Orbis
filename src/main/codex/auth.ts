@@ -4,8 +4,8 @@
  * `codex login status` answers "is there a login", which is Codex's question.
  * Ours is different and stricter: Codex reports itself logged in while holding
  * an EXPIRED access token, because it owns a refresh token and will renew on
- * its next run. We cannot renew -- the JWT's `client_id` is Codex's -- so for
- * us a stale token is unusable even though Codex considers itself fine.
+ * its next run. A stale token is unusable until Codex renews it. Voice access
+ * now asks Codex's app-server to do that; Orbis never implements OAuth itself.
  *
  * Measured 2026-08-11 on one token: `last_refresh` 2026-08-01T17:07:32Z against
  * an `exp` of 2026-08-11T17:07:32Z -- a lifetime of exactly TEN DAYS.

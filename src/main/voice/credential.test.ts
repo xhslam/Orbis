@@ -69,6 +69,11 @@ describe('reading the credential off disk', () => {
     expect(read.problem.kind).toBe('no-token')
   })
 
+  it.each([null, [], 3, 'text'])('reports a non-object auth file without throwing: %j', (value) => {
+    writeAuth(value)
+    expect(readBearer(home)).toMatchObject({ ok: false, problem: { kind: 'unreadable' } })
+  })
+
   it('survives a file with no last_refresh', () => {
     writeAuth({ tokens: { access_token: 't' } })
     const read = readBearer(home)
@@ -152,6 +157,16 @@ describe('minting an ephemeral key', () => {
     expect(read.problem.kind).toBe('unreachable')
   })
 
+  it.each(['null', '[]', '3', '"text"'])(
+    'reports a non-object mint response without throwing: %s',
+    async (body) => {
+      expect(await mintEphemeralKey({ bearer, fetch: answering(200, body) })).toMatchObject({
+        ok: false,
+        problem: { kind: 'unreadable' },
+      })
+    },
+  )
+
   it('refuses a 200 that carries no key', async () => {
     // §24: the mint endpoint validates nothing and will answer 200 to a model
     // that cannot exist. A success status is not a key.
@@ -190,6 +205,19 @@ describe('what the user is told', () => {
     expect(said).toContain('run `codex` once')
     expect(said).toContain('2026-07-31')
     expect(said).not.toContain('sign in')
+  })
+
+  it('does not display raw HTTP bodies or transport error details', () => {
+    const said = describeProblem({
+      kind: 'refused',
+      status: 403,
+      body: 'private-account secret-token',
+    })
+    expect(said).toContain('403')
+    expect(said).not.toContain('secret-token')
+    expect(
+      describeProblem({ kind: 'unreachable', why: 'secret-token private-proxy' }),
+    ).not.toContain('secret-token')
   })
 
   it('does say "sign in" when there is genuinely no credential', () => {

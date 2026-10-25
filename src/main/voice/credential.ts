@@ -3,44 +3,17 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import wire from '@shared/realtime-wire.json'
 import { readTokenState } from '../codex/auth'
+import { codexHome } from '../../capabilities/ask-workspace/profile'
+import type { RefreshFailure } from '../codex/refresh'
 import { DEFAULT_REALTIME_MODEL, type RealtimeModel } from '@shared/realtime-model'
 
 /**
- * The credential, and the two calls that turn it into a session.
+ * Main-process-only credential reading and Realtime mint/SDP calls.
  *
- * ## Everything here runs in main, and that is the point
- *
- * The bearer never crosses to the renderer. The renderer gets a peer connection
- * and, at most, frames — never a key. §2 established the same boundary for
- * capabilities: the loop stays on this machine, and the credential and the work
- * never meet.
- *
- * ## One credential source, and it is Codex
- *
- * There is no API-key path. `~/.codex/auth.json` (or `$CODEX_HOME`) holds a
- * ChatGPT-subscription OAuth token, and §24 verified that this credential
- * reaches the `gpt-realtime-2` line — so the subscription is the whole
- * arrangement rather than a fallback.
- *
- * ## The failure that is worth naming separately
- *
- * §51: the stored `access_token` goes stale somewhere between 5 and 17 days, and
- * **nothing refreshes it except using the CLI**. A machine that has been running
- * for weeks without anybody typing `codex` has a credential that fails at the
- * first mint, and the failure arrives as a bare `401` at the moment a session
- * opens — the least informative place to discover it.
- *
- * "Logged out" and "logged in, token stale" are different problems with
- * different remedies, and the file exists and parses in both cases. So a `401`
- * on the mint is reported as its own kind, with the fix in it.
- *
- * ## Staleness is now caught BEFORE the mint, and the 401 path stays anyway
- *
- * The token carries its own `exp`, so the common case — a machine nobody has
- * opened Codex on for a fortnight — is answered from the file rather than from
- * a rejected request. The 401 branch below is not redundant: a token can be
- * revoked, or the account changed, while the claim it carries is still in the
- * future, and only the service knows that.
+ * Codex owns the ChatGPT login. This module reads its bounded credential file
+ * and classifies expiry/HTTP failures; `access.ts` coordinates renewal through
+ * Codex's official app-server and a single retry. No bearer or minted key is
+ * returned to a renderer, and no API-key fallback is enabled here.
  */
 
 const AUTH_FILE = 'auth.json'
@@ -60,6 +33,8 @@ export type CredentialProblem =
   | { readonly kind: 'no-token' }
   /** The token is there and the service refused it. Almost always staleness. */
   | { readonly kind: 'stale-token'; readonly lastRefresh: string | null }
+  | { readonly kind: 'login-required' }
+  | { readonly kind: 'refresh-failed'; readonly reason: RefreshFailure }
   | { readonly kind: 'refused'; readonly status: number; readonly body: string }
   | { readonly kind: 'unreachable'; readonly why: string }
 
@@ -77,10 +52,20 @@ export function describeProblem(problem: CredentialProblem): string {
         (problem.lastRefresh === null ? '' : ` (last refreshed ${problem.lastRefresh})`) +
         ' — run `codex` once on this machine to refresh it'
       )
+    case 'login-required':
+      return 'Codex login could not be renewed — run `codex login`, then recheck in Settings'
+    case 'refresh-failed':
+      if (problem.reason === 'unavailable') {
+        return 'Codex could not be started to renew its login — check its installation and retry'
+      }
+      if (problem.reason === 'timed-out') {
+        return 'Codex login renewal timed out — check your network and recheck in Settings'
+      }
+      return 'Codex could not renew its login — check your network and retry; if it persists, run `codex login`'
     case 'refused':
-      return `the service refused the credential (HTTP ${problem.status}): ${problem.body.slice(0, 200)}`
+      return `the voice service refused the request (HTTP ${problem.status}) — check account access and retry`
     case 'unreachable':
-      return `the service could not be reached: ${problem.why}`
+      return 'the voice service could not be reached — check your network and retry'
   }
 }
 
@@ -94,9 +79,7 @@ export type Read<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly problem: CredentialProblem }
 
-export function readBearer(
-  home = process.env.CODEX_HOME ?? join(homedir(), '.codex'),
-): Read<Bearer> {
+export function readBearer(home = codexHome(process.env, homedir())): Read<Bearer> {
   const path = join(home, AUTH_FILE)
   let text: string
   try {
@@ -185,6 +168,12 @@ export function readBearer(
     return { ok: false, problem: { kind: 'unreadable', why: 'auth.json is not JSON' } }
   }
 
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return {
+      ok: false,
+      problem: { kind: 'unreadable', why: 'auth.json did not contain an object' },
+    }
+  }
   const record = parsed as { tokens?: { access_token?: unknown }; last_refresh?: unknown }
   const token = record.tokens?.access_token
   if (typeof token !== 'string' || token.length === 0) {
@@ -192,25 +181,8 @@ export function readBearer(
   }
   const lastRefresh = typeof record.last_refresh === 'string' ? record.last_refresh : null
 
-  /*
-    The token's OWN expiry, read before it is used rather than after it fails.
-
-    §51 is the whole of this file's header: the stored `access_token` goes stale
-    somewhere between 5 and 17 days, nothing refreshes it except running the
-    CLI, and the failure arrived as a bare 401 at the moment a session opened —
-    the least informative place to discover it. That path is still below and
-    still needed, because a token can be revoked while perfectly unexpired.
-
-    What is new is that the ordinary case no longer has to reach it. The `exp`
-    claim is in the token, `codex/auth.ts` reads it, and a credential that will
-    not survive the next two minutes is reported here — before the mint, before
-    the peer, before she opens her mouth. Same problem, same remedy, several
-    seconds and one network round trip earlier.
-
-    `readTokenState` rather than a second decoder: `codex/status.ts` asks the
-    same question for the settings window, and two answers to "is this token
-    alive" would disagree the first time either changed.
-  */
+  // The same expiry decision as the settings probe. `access.ts` renews this
+  // condition before minting; a revoked but unexpired token is caught by 401.
   const state = readTokenState(parsed, Date.now())
   if (state.kind === 'expired') {
     return { ok: false, problem: { kind: 'stale-token', lastRefresh } }
@@ -277,16 +249,20 @@ export async function mintEphemeralKey(input: {
       problem: { kind: 'unreadable', why: 'the response body could not be read' },
     }
   }
-  let body: { value?: unknown }
+  let body: unknown
   try {
-    body = JSON.parse(raw) as { value?: unknown }
+    body = JSON.parse(raw)
   } catch {
     return { ok: false, problem: { kind: 'unreadable', why: 'the mint did not answer with JSON' } }
   }
-  if (typeof body.value !== 'string' || body.value.length === 0) {
+  const value =
+    typeof body === 'object' && body !== null
+      ? (body as Record<string, unknown>)['value']
+      : undefined
+  if (typeof value !== 'string' || value.length === 0) {
     return { ok: false, problem: { kind: 'unreadable', why: 'the mint returned no key' } }
   }
-  return { ok: true, value: { key: body.value, model } }
+  return { ok: true, value: { key: value, model } }
 }
 
 /**
