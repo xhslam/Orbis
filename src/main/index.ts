@@ -61,7 +61,9 @@ import { SAYS } from './says'
 import { CAPABILITIES } from '../capabilities'
 import { createLedger, type AnswerFrame } from './capability/ledger'
 import { handleCall } from './capability/dispatch'
-import { describeProblem, exchangeSdp, mintEphemeralKey, readBearer } from './voice/credential'
+import { describeProblem, exchangeSdp } from './voice/credential'
+import { voiceAccess } from './voice/access'
+import { createOpenGeneration } from './voice/open-generation'
 import { activePersona, copyPersonaTo, loadPersonas, savePersonaTo } from './store/personas'
 import { deletePersona, discardWrite, sweepDeletions } from './store/delete-persona'
 import { readEdits, restoreBuiltIn } from './store/her-edits'
@@ -1235,6 +1237,7 @@ function setAsleep(asleep: boolean): void {
     // opens a session behind her closed eyes — the exact thing this change is
     // removing.
     nextSession.cancel()
+    voiceOpening.cancel()
     // She is going to sleep, so the next open IS a wake and she may greet.
     // Nothing is being replaced any more; if she is woken, that is a wake.
     reconnecting = false
@@ -2329,6 +2332,7 @@ const capabilityDeps: CapabilityDeps = {
  * handed its credential to the first renderer. See `voice/mint-slot.ts`.
  */
 const mint = createMintSlot()
+const voiceOpening = createOpenGeneration()
 
 /**
  * When she opens her next session — and the guarantee that she opens one.
@@ -2364,16 +2368,15 @@ const nextSession = createNextSession({
 })
 
 answer('voice:open', async () => {
-  const bearer = readBearer()
-  if (!bearer.ok) {
-    const why = describeProblem(bearer.problem)
-    console.error(`[voice] ${why}`)
-    return { ok: false, why }
-  }
-  const result = await mintEphemeralKey({ bearer: bearer.value })
+  const current = voiceOpening.begin()
+  if (resting.asleep) return { ok: false, why: 'the companion is resting' }
+  const result = await voiceAccess.mint()
+  if (!current()) return { ok: false, why: 'this negotiation was superseded' }
   if (!result.ok) {
     const why = describeProblem(result.problem)
     console.error(`[voice] ${why}`)
+    cannotSpeak = why
+    problems.note('codex', 'voice-credential', why)
     return { ok: false, why }
   }
   /*
@@ -2398,6 +2401,8 @@ answer('voice:open', async () => {
     for.
   */
   cannotSpeak = null
+  problems.resolve('codex', 'voice-credential')
+  tellCompanion({ type: '__mochi_cannot__', why: '' })
   nextSession.opened()
   /*
     The ledger is told too, and it is NOT reset.
@@ -3782,38 +3787,10 @@ answer('settings:grant', (_event, change: unknown) => {
 })
 
 /**
- * Is the borrowed credential usable — asked at startup, not at her first word.
- *
- * ## Why this is separate from `checkCodexNow`
- *
- * They answer different questions and only one of them was being asked. The
- * readiness check asks whether the CLI is installed and runs; this asks whether
- * the token in `~/.codex/auth.json` is one this app can still use. Read from
- * the file, not asked of the service: the token carries its own `exp`, and a
- * revoked-but-unexpired token still passes here and fails at the mint. That is
- * the case the 401 branch in `voice:open` stays for. A
- * machine can pass the first and fail the second, and that is the ORDINARY
- * failure rather than an exotic one: `codex/auth.ts` measured the access token
- * at a **ten-day** lifetime, and nothing refreshes it except running the CLI. A
- * fortnight without opening Codex is enough.
- *
- * ## Why at startup rather than where it already was
- *
- * It was already checked — inside `voice:open`, which is the moment she tries
- * to speak. `credential.ts` names that as "the least informative place to
- * discover it", and from outside the app it is not a diagnosis at all: she
- * simply does not answer.
- *
- * ## No new diagnosis, and none is wanted
- *
- * `readBearer` and `describeProblem` already compute the exact fault and the
- * exact remedy, down to the sentence to type. Every word a person reads here
- * was already written; the only thing that changes is that they read it before
- * the failure rather than instead of an explanation for it.
- *
- * The window is opened because a strip nobody has on screen is the same silence
- * one level along. It is not modal: a person who knows their token is stale and
- * wants her on the desktop anyway is not somebody this should argue with.
+ * Check before the first spoken turn, renewing through the same shared service
+ * as both voice entry points. Only failed recovery is surfaced. Successful JWT
+ * validation is not proof that Realtime accepts it; an existing refusal is
+ * cleared only when a mint succeeds.
  */
 /**
  * The reason she will not be able to speak, or null when there is none.
@@ -3837,12 +3814,14 @@ function tellHerWhyNot(): void {
   tellCompanion({ type: '__mochi_cannot__', why: cannotSpeak })
 }
 
-function checkCredentialNow(): void {
-  const bearer = readBearer()
-  if (bearer.ok) return
+async function checkCredentialNow(): Promise<boolean> {
+  const bearer = await voiceAccess.read()
+  // A live-looking JWT does not prove the mint will accept it. Keep any prior
+  // refusal until voice:open succeeds; a recheck may ask that open to retry.
+  if (bearer.ok) return true
   const why = describeProblem(bearer.problem)
   console.error(`[voice] ${why}`)
-  problems.note('codex', null, why)
+  problems.note('codex', 'voice-credential', why)
   cannotSpeak = why
   tellHerWhyNot()
   try {
@@ -3852,6 +3831,7 @@ function checkCredentialNow(): void {
     // companion's indicator reads the same list.
     console.error('[voice] the window could not be opened to say so:', error)
   }
+  return false
 }
 
 /**
@@ -4153,7 +4133,14 @@ answer('settings:hearing', (_event, change: unknown) => {
  */
 answer('settings:codex-recheck', async () => {
   console.log('[codex] re-checking on request')
-  return await checkCodexNow()
+  const wasUnableToSpeak = cannotSpeak !== null
+  const credentialReady = await checkCredentialNow()
+  const status = await checkCodexNow()
+  if (wasUnableToSpeak && credentialReady && !resting.asleep) {
+    reconnecting = true
+    tellCompanion({ type: '__mochi_reconnect__' })
+  }
+  return status
 })
 
 /**
@@ -4579,14 +4566,14 @@ const startup = app.whenReady().then(
       await shellPath({ platform: process.platform, env: process.env }),
     )
 
-    void checkCodexNow().then(undefined, (error: unknown) => {
-      // Not fatal, and not silent. A check that threw would otherwise leave the
-      // status on its "not finished yet" answer for the life of the process.
-      console.error('[codex] the readiness check could not be run:', error)
-      problems.note('codex', null, `Codex could not be checked: ${String(error)}`)
-    })
-
-    checkCredentialNow()
+    // Judge CLI readiness AFTER a possible token renewal, not in parallel with
+    // it: otherwise Settings can cache "stale" after voice has already healed.
+    void checkCredentialNow()
+      .then(() => checkCodexNow())
+      .catch(() => {
+        console.error('[codex] the startup readiness check could not be completed')
+        problems.note('codex', 'readiness', 'Codex could not be checked; recheck in Settings')
+      })
 
     tray = createTray(menuModel, menuHandlers)
 

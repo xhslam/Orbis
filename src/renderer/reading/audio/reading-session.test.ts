@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildRetellingSessionConfig } from './reading-session'
+import { buildRetellingSessionConfig, describeVoiceProblem } from './reading-session'
 
 interface SessionConfigPayload {
   readonly session: {
@@ -18,6 +18,23 @@ interface SessionConfigPayload {
     }
   }
 }
+
+describe('reading voice failure messages', () => {
+  it('shows the actionable message supplied by main', () => {
+    expect(
+      describeVoiceProblem({ kind: 'refresh-failed', message: 'Check your network and retry' }),
+    ).toBe('Check your network and retry')
+  })
+
+  it.each([null, { kind: 'unknown', private: 'not for display' }, { message: 3 }])(
+    'does not dump unknown problem payloads: %j',
+    (problem) => {
+      const said = describeVoiceProblem(problem)
+      expect(said).toContain('Settings')
+      expect(said).not.toContain('private')
+    },
+  )
+})
 
 describe('Reading voice session configuration', () => {
   it('configures turn detection with server_vad and response creation disabled', () => {

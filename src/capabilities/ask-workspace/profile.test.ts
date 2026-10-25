@@ -1,6 +1,6 @@
 import { mkdtempSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { isProfileName } from '../../main/store/worn'
 import { codexHome, profileFile, profileFor, seedProfile, SEEDED_PROFILE } from './profile'
@@ -28,6 +28,12 @@ describe('finding Codex home', () => {
     // `exec` and `doctor`. Somebody who has moved it moved it for a reason, and
     // writing to the wrong place produces a file that is never read.
     expect(codexHome({ CODEX_HOME: '/elsewhere/codex' }, '/home/them')).toBe('/elsewhere/codex')
+  })
+
+  it('resolves a relative CODEX_HOME before a child changes its cwd', () => {
+    expect(codexHome({ CODEX_HOME: 'relative-profile' }, '/home/them')).toBe(
+      resolve('relative-profile'),
+    )
   })
 
   it('falls back to ~/.codex, and treats an empty variable as unset', () => {

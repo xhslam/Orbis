@@ -2,7 +2,7 @@ import type { MochiApi } from '@shared/ipc'
 import { showFace, type Face } from './face'
 import { applyAccent } from '../design/apply-accent'
 import { EMOTIONS, type Emotion } from '@shared/avatar'
-import { STATUS_UNDER } from '@shared/avatar-layout'
+import { statusTop } from './status-position'
 import { keepsNewer } from './negotiating'
 import { openSession, type Session, type SessionState } from './audio/session'
 import { installLogStamp } from '@shared/log'
@@ -27,14 +27,15 @@ declare global {
   }
 }
 
-const canvas = document.querySelector('#face')
+const foundCanvas = document.querySelector('#face')
 const found = document.querySelector('#app')
-if (!(canvas instanceof HTMLCanvasElement) || found === null) {
+if (!(foundCanvas instanceof HTMLCanvasElement) || found === null) {
   // Fail loud. Rendering into nothing is indistinguishable from a slow start.
   throw new Error('companion: the document is not the one this expects')
 }
 // Re-bound so the narrowing survives into the closures below, which are defined
 // after the check and cannot see it otherwise.
+const canvas: HTMLCanvasElement = foundCanvas
 const status: Element = found
 
 /**
@@ -52,6 +53,7 @@ const face: Face = showFace(canvas)
 
 function show(text: string): void {
   status.textContent = text
+  status.setAttribute('title', text)
   placeStatus()
 }
 
@@ -61,19 +63,18 @@ function show(text: string): void {
  * `#app` was `bottom: 6px`, which is the bottom of a transparent window sized
  * for a speech bubble above her, one below, and a whole one beside — so
  * "opening…" appeared hundreds of pixels below her feet, unattached to anything.
- * `feetY` puts her 340px from the TOP; the window's bottom edge is nowhere near
- * her and never was.
+ * Her position follows the canvas geometry rather than a fixed window edge.
  *
  * Read from `face.box()` rather than from `FEET_FROM_TOP`, because her size is a
- * persona field and the box already accounts for it, for her body height, and
- * for the clamp that applies when the canvas is short.
+ * persona field and the box already accounts for it. Long failures are moved
+ * above her or clamped into the actual viewport, so their remedy stays visible.
  */
 function placeStatus(): void {
   const her = face.box()
   // Under her, and under whatever the canvas has already drawn under her. The
   // beat sits there too, and these two used to be painted on top of each other.
-  const under = Math.round(her.top + her.height * (1 + STATUS_UNDER))
-  status.setAttribute('style', `top: ${String(under)}px`)
+  const top = statusTop(her, canvas.clientHeight, status.getBoundingClientRect().height)
+  status.setAttribute('style', `top: ${String(top)}px`)
 }
 
 /*
@@ -591,7 +592,7 @@ window.mochi.onSend((frame) => {
       trade than a sentence under her feet.
     */
     const why = (frame as { why?: unknown }).why
-    if (typeof why === 'string' && why !== '') show(why)
+    if (typeof why === 'string') show(why)
     return
   }
 

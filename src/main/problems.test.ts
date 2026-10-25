@@ -25,6 +25,21 @@ describe('what went wrong', () => {
     expect(p.all().some((one) => one.detail === 'problem 0')).toBe(false)
   })
 
+  it('resolves only the recovered area and subject, and updates its badge once', () => {
+    const p = createProblems()
+    p.note('avatar', 'mine.json', 'bad')
+    p.note('codex', 'readiness', 'stale')
+    p.note('codex', 'voice-credential', 'expired')
+    p.note('codex', 'voice-credential', 'refresh failed')
+    const counts: number[] = []
+    p.watch((count) => counts.push(count))
+    p.resolve('codex', 'voice-credential')
+    expect(p.all().map((one) => one.subject)).toEqual(['readiness', 'mine.json'])
+    expect(counts).toEqual([2])
+    p.resolve('codex', 'voice-credential')
+    expect(counts).toEqual([2])
+  })
+
   it('starts empty and can be emptied', () => {
     const p = createProblems()
     expect(p.count()).toBe(0)

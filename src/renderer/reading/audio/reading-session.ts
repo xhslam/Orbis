@@ -66,6 +66,15 @@ export interface ReadingVoiceSession {
   readonly close: () => void
 }
 
+/** Show the main process's actionable sentence, not a JSON dump of internals. */
+export function describeVoiceProblem(problem: unknown): string {
+  if (typeof problem === 'object' && problem !== null && 'message' in problem) {
+    const message = (problem as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim() !== '') return message
+  }
+  return 'Could not open the voice session — recheck Codex in Settings'
+}
+
 export async function openReadingVoiceSession(
   handlers: RetellingSessionHandlers,
   initialInstructions: string,
@@ -81,7 +90,7 @@ export async function openReadingVoiceSession(
 
   const openRes = await api.openVoice()
   if (!openRes.ok) {
-    const err = openRes.problem ? JSON.stringify(openRes.problem) : 'Failed to obtain voice session'
+    const err = describeVoiceProblem(openRes.problem)
     handlers.onStateChange({ error: err })
     throw new Error(err)
   }

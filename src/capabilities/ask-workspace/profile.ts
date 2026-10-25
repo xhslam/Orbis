@@ -47,7 +47,7 @@
  */
 
 import { writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 /** The profile this project seeds. A name, not a path — see `isProfileName`. */
 export const SEEDED_PROFILE = 'mochi'
@@ -67,7 +67,7 @@ export function profileFile(codexHome: string, name: string): string {
  */
 export function codexHome(env: NodeJS.ProcessEnv, home: string): string {
   const set = env['CODEX_HOME']
-  return set !== undefined && set !== '' ? set : join(home, '.codex')
+  return set !== undefined && set !== '' ? resolve(set) : join(home, '.codex')
 }
 
 /**

@@ -62,9 +62,14 @@
         right: 0;
         width: fit-content;
         max-width: calc(100% - var(--s3));
+        box-sizing: border-box;
+        max-height: calc(100% - 16px);
+        overflow: auto;
+        overflow-wrap: anywhere;
+        user-select: text;
         margin-inline: auto;
         padding: var(--s0) var(--s3);
-        border-radius: var(--r-pill);
+        border-radius: var(--r-card);
         background: var(--paper);
         /* It sits over an unknown desktop, so it carries its own weight. This
            was `--lift-1`, which is `none`: the chip has never had an edge. */
