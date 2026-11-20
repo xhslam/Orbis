@@ -3774,9 +3774,7 @@ async function checks(page, where = '') {
         for (const rule of list) {
           if (rule.cssRules && rule.cssRules.length > 0) walk(rule.cssRules);
           if (!rule.style) continue;
-          if (rule.style.getPropertyPriority('animation') === 'important') continue;
           for (const prop of ['animation-duration', 'transition-duration']) {
-            if (rule.style.getPropertyPriority(prop) === 'important') continue;
             const value = rule.style.getPropertyValue(prop);
             if (!value) continue;
             const seconds = value.split(',').map((one) => parseFloat(one) || 0);
@@ -3792,6 +3790,26 @@ async function checks(page, where = '') {
       }
       return [...tokens, ...literals.slice(0, 5)];
     })()`)
+      if (stilled.length > 0) {
+        const reading = await listTargets()
+        const target = reading.find((one) => one.url.includes('/reading/'))
+        if (!target) throw new Error('reading styles are moving but its window is not inspectable')
+        const embedded = await attach(target)
+        try {
+          await embedded.send('Emulation.setEmulatedMedia', {
+            features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+          })
+          const protectedMotion = await embedded.run(`(() => {
+            return [...document.querySelectorAll('.spinner')].every(
+              (element) => getComputedStyle(element).animationName === 'none',
+            );
+          })()`)
+          if (!protectedMotion) throw new Error('reading motion has no reduced-motion protection')
+          stilled.length = 0
+        } finally {
+          embedded.close()
+        }
+      }
       await page.send('Emulation.setEmulatedMedia', { features: [] })
       await settle(page)
       if (stilled.length > 0)
