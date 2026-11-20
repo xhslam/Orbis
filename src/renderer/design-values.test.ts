@@ -320,10 +320,10 @@ describe('the vocabulary that is declared and not yet spoken', () => {
 
       The mark is on `--duration-mark` now, which is deliberately outside the
       reduced-motion block because a tint dissolving in place is not motion.
-      That leaves `--duration` the slow MOTION rung with nothing yet spending
-      it, which is what this list is for.
+      `--duration` has now found its proper use in the rail's transitions.
+      The reduced-motion block clears it there, so expanding and collapsing
+      do not animate when the user asks for less motion.
     */
-    '--duration': 'the slow motion rung; the landing mark moved to --duration-mark',
     /*
       The ring's geometry, which IS bound — by the check above, not at runtime.
 
