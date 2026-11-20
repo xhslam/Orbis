@@ -1437,6 +1437,13 @@
   color: #047857;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .reading-app *,
+  .modal-dialog * {
+    animation: none !important;
+  }
+}
+
 /* This document fills its native view in the main window content column. */
 html,
 body {
