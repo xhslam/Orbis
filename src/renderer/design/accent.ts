@@ -248,7 +248,7 @@ export function accentVariables(face: FaceSpec): Readonly<Record<string, string>
      *
      * ## The gold is real, and it does not clear the floor
      *
-     * It exists in `site/index.html`: `#b68235` light, `#e1ad66` dark. Measured
+     * The original palette is `#b68235` light and `#e1ad66` dark. Measured
      * with the `contrast()` below, against the surfaces in `tokens.css`:
      *
      * | | on `--paper` | on `--gold-wash` |

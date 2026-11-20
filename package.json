@@ -4,13 +4,13 @@
   "version": "0.1.26",
   "private": true,
   "description": "A realtime-voice AI companion and reading tool that lives on your desktop",
-  "author": "@xiaolai",
+  "author": "xhslam",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xhslam/Orbis.git"
   },
-  "homepage": "https://lixiaolai.com",
+  "homepage": "https://github.com/xhslam/Orbis",
   "engines": {
     "node": ">=24.0.0",
     "pnpm": ">=10.0.0"

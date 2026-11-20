@@ -45,7 +45,7 @@ publish:
   provider: github
   owner: xhslam
   repo: Orbis
-copyright: © HANDO K.K.
+copyright: © 2026 HANDO K.K. and Orbis contributors
 
 directories:
   output: release

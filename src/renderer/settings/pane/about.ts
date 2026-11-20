@@ -27,7 +27,7 @@ import { SAYS } from '../panes-says'
 import { anchor, field, type Field, type PaneHandlers } from '../pane'
 import { section } from '../../history/sheet/row'
 import { type SettingsUpdate, type SettingsView } from '@shared/ipc'
-import { AUTHOR, SITE, SOURCE, VERSION, glyphSvg, type Glyph } from '../../history/glyph'
+import { AUTHOR, SOURCE, VERSION, glyphSvg, type Glyph } from '../../history/glyph'
 import { type Link } from '@shared/links'
 import { getLanguage } from '../../i18n'
 
@@ -198,7 +198,6 @@ function links(handlers: PaneHandlers, version: string): HTMLElement {
   const rows: readonly [Glyph, string, string, Link | null][] = [
     [AUTHOR, isZh ? '作者' : 'Author', '@xiaolai · lixiaolai.com', 'author'],
     [SOURCE, isZh ? '代码仓库' : 'Source', 'github.com/xhslam/Orbis', 'repo'],
-    [SITE, isZh ? '官方网站' : 'Website', 'moch.im', 'site'],
     [VERSION, isZh ? '版本号' : 'Version', version, null],
   ]
   for (const [glyph, what, said, opens] of rows) {

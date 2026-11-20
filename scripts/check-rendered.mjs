@@ -2019,7 +2019,7 @@ async function checks(page, where = '') {
         glyphs: r.querySelectorAll('svg').length,
       }));
     })()`)
-    const want = ['Author', 'Source', 'Website', 'Version']
+    const want = ['Author', 'Source', 'Version']
     if (shape.map((r) => r.what).join(',') !== want.join(',')) {
       bad(
         'about-links',
@@ -2067,17 +2067,17 @@ async function checks(page, where = '') {
       bad('about-links', `every row needs exactly one glyph: ${JSON.stringify(shape)}`)
       return
     }
-    if (shape[3].tag !== 'div') {
+    if (shape.at(-1)?.tag !== 'div') {
       bad('about-links', 'the version row is pressable, and it goes nowhere')
       return
     }
     const opens = await page.run(
       `${rows}.filter((r) => r.tagName.toLowerCase() === 'button').map((r) => r.dataset.opens)`,
     )
-    if (opens.join(',') !== 'author,repo,site') {
+    if (opens.join(',') !== 'author,repo') {
       bad('about-links', `each row must open its own address; got ${JSON.stringify(opens)}`)
     } else {
-      ok('about-links', `${String(shape.length)} rows, and author/repo/site each open their own`)
+      ok('about-links', `${String(shape.length)} rows, and author/repo each open their own`)
     }
   })
 
