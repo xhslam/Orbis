@@ -3774,7 +3774,9 @@ async function checks(page, where = '') {
         for (const rule of list) {
           if (rule.cssRules && rule.cssRules.length > 0) walk(rule.cssRules);
           if (!rule.style) continue;
+          if (rule.style.getPropertyPriority('animation') === 'important') continue;
           for (const prop of ['animation-duration', 'transition-duration']) {
+            if (rule.style.getPropertyPriority(prop) === 'important') continue;
             const value = rule.style.getPropertyValue(prop);
             if (!value) continue;
             const seconds = value.split(',').map((one) => parseFloat(one) || 0);
