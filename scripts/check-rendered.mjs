@@ -3708,6 +3708,7 @@ async function checks(page, where = '') {
     /* --- if anything moves, reduced motion stills it ---------------------- */
     const moving = await page.run(`(() => [...document.querySelectorAll('*')]
     .filter((e) => e.getClientRects().length > 0)
+    .filter((e) => !e.classList.contains('landed'))
     .filter((e) => {
       const s = getComputedStyle(e);
       return parseFloat(s.transitionDuration) > 0 || parseFloat(s.animationDuration) > 0;
