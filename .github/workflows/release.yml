@@ -130,9 +130,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The Paper integration has known unrelated format and lint findings.
-      # Keep the executable type, test and render gates without hiding them.
-      - run: pnpm typecheck && pnpm test
+      # Style-only checks remain available separately as `pnpm verify:style`.
+      - run: pnpm verify
 
       - run: pnpm verify:rendered
 

@@ -72,7 +72,7 @@ jobs:
       # fails here, loudly, instead of resolving to something nobody tested.
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm typecheck && pnpm test
+      - run: pnpm verify
 
       # The rendered gate: the half of the contract that only exists once a
       # browser has laid the window out. It builds, launches the app twice over
