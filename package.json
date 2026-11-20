@@ -1,7 +1,7 @@
 {
   "name": "orbis",
   "productName": "Orbis",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "private": true,
   "description": "A realtime-voice AI companion and reading tool that lives on your desktop",
   "author": "@xiaolai",
