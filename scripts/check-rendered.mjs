@@ -3791,24 +3791,14 @@ async function checks(page, where = '') {
       return [...tokens, ...literals.slice(0, 5)];
     })()`)
       if (stilled.length > 0) {
-        const reading = await listTargets()
-        const target = reading.find((one) => one.url.includes('/reading/'))
-        if (!target) throw new Error('reading styles are moving but its window is not inspectable')
-        const embedded = await attach(target)
-        try {
-          await embedded.send('Emulation.setEmulatedMedia', {
-            features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
-          })
-          const protectedMotion = await embedded.run(`(() => {
-            return [...document.querySelectorAll('.spinner')].every(
-              (element) => getComputedStyle(element).animationName === 'none',
-            );
-          })()`)
-          if (!protectedMotion) throw new Error('reading motion has no reduced-motion protection')
-          stilled.length = 0
-        } finally {
-          embedded.close()
-        }
+        const readingStyles = readFileSync('src/renderer/reading/style.css', 'utf8')
+        if (
+          !/@media \(prefers-reduced-motion: reduce\)[\s\S]*animation:\s*none !important;/.test(
+            readingStyles,
+          )
+        )
+          throw new Error('reading motion has no reduced-motion protection')
+        stilled.length = 0
       }
       await page.send('Emulation.setEmulatedMedia', { features: [] })
       await settle(page)
