@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { pickUpdater } from './update'
+import { createAutomaticUpdateSchedule, pickUpdater } from './update'
+import type { SettingsUpdate } from '@shared/ipc'
 
 /**
  * The one thing in `update.ts` that can be tested without an Electron app, and
@@ -39,6 +40,73 @@ describe('finding autoUpdater on whatever the import returns', () => {
     expect(() => pickUpdater({ AppUpdater: class {} })).toThrow(/no autoUpdater/)
     expect(() => pickUpdater({})).toThrow(/no autoUpdater/)
     expect(() => pickUpdater(null)).toThrow()
+  })
+})
+
+describe('the automatic update schedule', () => {
+  it('checks and downloads when enabled, and never installs', async () => {
+    let enabled = true
+    let launch: (() => void) | undefined
+    let periodic: (() => void) | undefined
+    const checks: string[] = []
+    const schedule = createAutomaticUpdateSchedule({
+      enabled: () => enabled,
+      check: () => {
+        checks.push('check')
+        return Promise.resolve<SettingsUpdate>({ kind: 'available', version: '1.0.0' })
+      },
+      download: () => {
+        checks.push('download')
+        return Promise.resolve<SettingsUpdate>({ kind: 'ready', version: '1.0.0' })
+      },
+      setTimeout: ((callback: () => void) => {
+        launch = callback
+        return { unref() {} }
+      }) as never,
+      setInterval: ((callback: () => void) => {
+        periodic = callback
+        return { unref() {} }
+      }) as never,
+    })
+    schedule.setEnabled(true)
+    launch?.()
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    expect(checks).toEqual(['check', 'download'])
+    enabled = false
+    periodic?.()
+    expect(checks).toEqual(['check', 'download'])
+    schedule.stop()
+  })
+
+  it('does not schedule network work when disabled', () => {
+    const clear: string[] = []
+    let scheduled = 0
+    const schedule = createAutomaticUpdateSchedule({
+      enabled: () => false,
+      check: () => Promise.resolve<SettingsUpdate>({ kind: 'idle' }),
+      download: () => Promise.resolve<SettingsUpdate>({ kind: 'idle' }),
+      setTimeout: (() => {
+        scheduled += 1
+        return { unref() {} }
+      }) as never,
+      setInterval: (() => {
+        scheduled += 1
+        return { unref() {} }
+      }) as never,
+      clearTimeout: () => {
+        clear.push('timeout')
+      },
+      clearInterval: () => {
+        clear.push('interval')
+      },
+    })
+    schedule.setEnabled(false)
+    expect(scheduled).toBe(0)
+    schedule.setEnabled(true)
+    schedule.setEnabled(false)
+    expect(scheduled).toBe(0)
+    expect(clear).toEqual([])
+    schedule.stop()
   })
 })
 

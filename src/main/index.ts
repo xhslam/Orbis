@@ -16,7 +16,13 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { BUBBLE_SIDES, PERSONA_LIMITS, VOICE_NAMES } from '@shared/persona'
 import { LINKS, isLink } from '@shared/links'
 import { installMenu } from './menu'
-import { checkForUpdate, downloadUpdate, installUpdate, updateState } from './update'
+import {
+  checkForUpdate,
+  createAutomaticUpdateSchedule,
+  downloadUpdate,
+  installUpdate,
+  updateState,
+} from './update'
 import { BUILT_IN_ID } from '@shared/parse-persona'
 import { PROMPT_SLOTS } from '@shared/instructions'
 import { createRegistry, type WireTool } from '@shared/capability/registry'
@@ -88,8 +94,10 @@ import {
   WORKSPACE_DIR,
   guardStopAt,
   readWornPersonaId,
+  readAutoUpdate,
   writeResting,
   writeWornPersonaId,
+  writeAutoUpdate,
   readSleepAfterMinutes,
   readHaloWhen,
   readShoulderChip,
@@ -2861,6 +2869,7 @@ answer('settings:read', () => {
       SHORTCUTS,
     ),
     update: updateState(),
+    autoUpdate: readAutoUpdate(userData),
     about: {
       name: app.getName(),
       version: app.getVersion(),
@@ -4158,6 +4167,22 @@ answer('settings:codex-recheck', async () => {
  */
 answer('settings:check-update', async () => checkForUpdate())
 answer('settings:download-update', async () => downloadUpdate())
+answer('settings:auto-update', async (_event, enabled: unknown) => {
+  if (typeof enabled !== 'boolean') return refuse('That is not an update preference.')
+  try {
+    writeAutoUpdate(app.getPath('userData'), enabled)
+  } catch (error: unknown) {
+    return refuse(`That could not be saved: ${String(error)}`)
+  }
+  if (enabled) {
+    const found = await checkForUpdate()
+    if (readAutoUpdate(app.getPath('userData')) && found.kind === 'available') {
+      void downloadUpdate()
+    }
+  }
+  automaticUpdates.setEnabled(enabled)
+  return { ok: true }
+})
 listenTo('settings:install-update', () => {
   void installUpdate()
 })
@@ -4314,8 +4339,16 @@ answer('history:search', (_event, query: unknown) => {
  * two hundred lines of startup and turns a nine-line fix into a four-hundred-
  * line diff nobody can review.
  */
+const automaticUpdates = createAutomaticUpdateSchedule({
+  enabled: () => readAutoUpdate(app.getPath('userData')),
+  check: checkForUpdate,
+  download: downloadUpdate,
+})
+
 const startup = app.whenReady().then(
   async () => {
+    automaticUpdates.setEnabled(readAutoUpdate(app.getPath('userData')))
+    app.once('will-quit', () => automaticUpdates.stop())
     /*
       Before any window exists, because the menu is what binds the keys those
       windows will be pressed with — and because Electron installs its own

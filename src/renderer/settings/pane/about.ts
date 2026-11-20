@@ -20,7 +20,7 @@
  * what the window itself is, to what the build is — and a version number is the
  * one thing here nobody arrives looking for.
  */
-import { element } from '../../element'
+import { checkbox, element } from '../../element'
 import { type Pane } from '../pane'
 import { forPronoun, label as copyFor, label as paneLabel } from '@shared/pronoun'
 import { SAYS } from '../panes-says'
@@ -109,7 +109,7 @@ export const ABOUT: Pane = {
         one fact you have to hunt for somewhere else.
       */
       links(handlers, view.about.version),
-      updates(view.update, view.pronoun, handlers),
+      updates(view, handlers),
       /*
         WHAT IT IS BUILT ON, which was on no screen.
 
@@ -197,7 +197,7 @@ function links(handlers: PaneHandlers, version: string): HTMLElement {
   const isZh = getLanguage() === 'zh'
   const rows: readonly [Glyph, string, string, Link | null][] = [
     [AUTHOR, isZh ? '作者' : 'Author', '@xiaolai · lixiaolai.com', 'author'],
-    [SOURCE, isZh ? '代码仓库' : 'Source', 'github.com/xiaolai/mochi', 'repo'],
+    [SOURCE, isZh ? '代码仓库' : 'Source', 'github.com/xhslam/Orbis', 'repo'],
     [SITE, isZh ? '官方网站' : 'Website', 'moch.im', 'site'],
     [VERSION, isZh ? '版本号' : 'Version', version, null],
   ]
@@ -246,18 +246,14 @@ function links(handlers: PaneHandlers, version: string): HTMLElement {
  * verbs when only one of them is ever available. The button says what it will
  * do next, and what it will do next is decided by what the last one found.
  *
- * ## Nothing happens on its own
+ * ## Installing never happens on its own
  *
- * `update.ts` turns off `autoDownload` and `autoInstallOnAppQuit`. She sits on
- * a desktop all day; fetching 120MB unasked, on a connection that may be
- * metered, and then replacing herself at the next quit are two things nobody
- * agreed to. So this row does nothing at all until it is pressed.
+ * `update.ts` turns off `autoInstallOnAppQuit`. Automatic downloading is opt-in
+ * and described beside the switch; replacing the running application still
+ * always needs the restart button below.
  */
-function updates(
-  state: SettingsUpdate,
-  pronoun: SettingsView['pronoun'],
-  handlers: PaneHandlers,
-): HTMLElement {
+function updates(view: SettingsView, handlers: PaneHandlers): HTMLElement {
+  const state = view.update
   const isZh = getLanguage() === 'zh'
   const said: Record<SettingsUpdate['kind'], string> = isZh
     ? {
@@ -314,7 +310,29 @@ function updates(
               },
             }
 
-  const body: HTMLElement[] = [note]
+  const automatic = checkbox('automatic-updates', view.autoUpdate, (enabled) => {
+    automatic.disabled = true
+    void handlers.setAutoUpdate(enabled)
+  })
+  const automaticLabel = element(
+    'label',
+    undefined,
+    isZh ? '自动下载新版本' : 'Download new versions automatically',
+  )
+  automaticLabel.htmlFor = automatic.id
+  const automaticSwitch = element('div', 'switch')
+  automaticSwitch.append(automatic, automaticLabel)
+  const body: HTMLElement[] = [
+    automaticSwitch,
+    element(
+      'p',
+      'note',
+      isZh
+        ? '启动后及运行期间检查更新；下载完成后，由你确认重启安装。'
+        : 'Checks at launch and while running. You choose when to restart and install.',
+    ),
+    note,
+  ]
   if (act !== null) {
     press.textContent = act.label
     press.addEventListener('click', act.run)
@@ -335,7 +353,7 @@ function updates(
   return anchor(
     FIELDS.updates,
     section(
-      paneLabel(FIELDS.updates.label, pronoun),
+      paneLabel(FIELDS.updates.label, view.pronoun),
       state.kind === 'none' ? (isZh ? '已是最新版本' : 'up to date') : '',
       wrap,
     ),

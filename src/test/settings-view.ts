@@ -90,6 +90,7 @@ export function settledView(): SettingsView {
       userData: '/u',
     },
     update: { kind: 'idle' },
+    autoUpdate: true,
     /*
       TWO, NOT NONE — and the difference is the whole point of listing them.
 
@@ -150,6 +151,7 @@ export function paneHandlers(): PaneHandlers {
     reveal: nothing,
     openLink: nothing,
     checkUpdate: () => Promise.resolve({ kind: 'idle' }),
+    setAutoUpdate: () => Promise.resolve({ ok: true }),
     downloadUpdate: () => Promise.resolve({ kind: 'idle' }),
     installUpdate: nothing,
     say: nothing,

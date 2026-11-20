@@ -98,6 +98,7 @@ export interface PaneHandlers {
    * which is what lets one button say "Downloading…" and then become "Restart".
    */
   readonly checkUpdate: () => Promise<SettingsUpdate>
+  readonly setAutoUpdate: (enabled: boolean) => Promise<unknown>
   readonly downloadUpdate: () => Promise<SettingsUpdate>
   readonly installUpdate: () => void
   readonly say: (text: string, bad?: boolean) => void

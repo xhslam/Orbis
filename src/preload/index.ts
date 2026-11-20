@@ -307,6 +307,12 @@ const settings: MochiSettingsApi = {
       guardSettings('settings:download-update'),
     )) as Answers['settings:download-update']
   },
+  async setAutoUpdate(enabled: boolean) {
+    return (await ipcRenderer.invoke(
+      guardSettings('settings:auto-update'),
+      enabled,
+    )) as Answers['settings:auto-update']
+  },
   installUpdate() {
     ipcRenderer.send(guardSettings('settings:install-update'))
   },

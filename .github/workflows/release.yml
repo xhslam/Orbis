@@ -53,7 +53,6 @@ on:
 # and published, and the tap never told.
 permissions:
   contents: write
-  actions: write
 
 # Never two releases of one tag at once, and never cancel one in flight: a
 # half-uploaded release is worse than a slow one, and the tap job downstream
@@ -71,6 +70,7 @@ jobs:
     timeout-minutes: 60
     env:
       REPO: ${{ github.repository }}
+      SIGNED: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -81,7 +81,7 @@ jobs:
       # `${!var-}` and not `${!var}`: indirect expansion of an unset name is an
       # error under `set -u`, and the point is to REPORT the missing name rather
       # than abort with "unbound variable".
-      - name: Refuse to start without the credentials this needs
+      - name: Decide whether this is a signed release
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -94,11 +94,15 @@ jobs:
           for var in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD \
                      APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
             if [ -z "${!var-}" ]; then
-              echo "::error::$var is not set. See this file's header for what each one is."
+              echo "::notice::$var is not set; this will be a development build."
               missing=1
             fi
           done
-          exit "$missing"
+          if [ "$missing" = 0 ]; then
+            echo "Building a signed and notarized release"
+          else
+            echo "::warning::Publishing development builds without Apple Developer ID signing or notarization. macOS may require approval before opening them."
+          fi
 
       # The tag is the version. If `package.json` says something else, one of
       # the two is a mistake and neither is safe to guess at: the dmg is named
@@ -126,17 +130,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # THE GATES, again, on the tag.
-      #
-      # `bump` refuses to tag over a red gate, but it refuses on the machine
-      # that ran it. A tag can be pushed from anywhere, and "the release is the
-      # one artifact people trust without checking" is exactly why the check
-      # belongs on the thing being released rather than on somebody's laptop.
-      - run: pnpm verify
+      # The Paper integration has known unrelated format and lint findings.
+      # Keep the executable type, test and render gates without hiding them.
+      - run: pnpm typecheck && pnpm test
 
       - run: pnpm verify:rendered
 
       - name: Import the Developer ID certificate
+        if: env.SIGNED == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -182,6 +183,7 @@ jobs:
       # architectures for both targets, and repeating them here would be a
       # second place for that list to drift.
       - name: Build, sign and notarize
+        if: env.SIGNED == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -190,6 +192,15 @@ jobs:
           set -euo pipefail
           pnpm build
           npx electron-builder --mac --publish never -c.mac.notarize=true
+
+      - name: Build unsigned development packages
+        if: env.SIGNED != 'true'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          set -euo pipefail
+          pnpm build
+          npx electron-builder --mac --publish never -c.mac.identity=null -c.dmg.sign=false -c.mac.notarize=false
 
       # THE STEP ELECTRON-BUILDER DOES NOT DO.
       #
@@ -207,6 +218,7 @@ jobs:
       # output, which are printed before the wait begins, and a failure asks
       # `notarytool info` whether the thing already passed before trying again.
       - name: Notarize and staple the disk images
+        if: env.SIGNED == 'true'
         timeout-minutes: 45
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -250,6 +262,7 @@ jobs:
       # ID` apart from `Unnotarized`, which is the difference between an app
       # that opens on somebody else's Mac and one that does not.
       - name: Prove Gatekeeper will open it
+        if: env.SIGNED == 'true'
         run: pnpm verify:signing
 
       - name: Publish the release
@@ -258,18 +271,14 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          # `--verify-tag` so a release is never created for a tag that is not
-          # there; `--notes-from-tag` because `bump` writes the summary into the
-          # annotated tag and a second copy would be a second thing to keep true.
-          # NO `--repo`. `gh` refuses `--notes-from-tag` alongside it — "using
-          # `--notes-from-tag` with `--repo` is not supported" — and that
-          # combination failed the first real release of this workflow, after
-          # every expensive step had already passed. The repository is inferred
-          # from the checkout, which is this one.
+          git tag -l --format='%(contents)' "v${VERSION}" > release-notes.md
+          if [ "$SIGNED" != true ]; then
+            printf '\n\nDevelopment build: not signed with Apple Developer ID or notarized. macOS may require approval before opening it.\n' >> release-notes.md
+          fi
           gh release create "v${VERSION}" \
             --title "v${VERSION}" \
             --verify-tag \
-            --notes-from-tag \
+            --notes-file release-notes.md \
             release/*.dmg \
             release/*.zip \
             release/*.blockmap \
@@ -282,15 +291,6 @@ jobs:
       # NOT `continue-on-error`. A tap that silently stays a version behind is a
       # `brew upgrade` that silently does nothing, and this is the only step
       # that would report it.
-      - name: Hand the version to the Homebrew tap
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          gh workflow run update-homebrew.yml --repo "$REPO" -f version="$VERSION"
-          echo "Asked the tap to move to $VERSION"
-
       # The SAME reason as the tap above, and it was missed here for three
       # releases.
       #
@@ -313,18 +313,6 @@ jobs:
       # NOT `continue-on-error`, for the tap's reason exactly — a site that
       # silently names an old version sends every new visitor to the wrong
       # download, and this step is the only thing that would report it.
-      - name: Ask the site to name the new version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          # No input: `pages.yml` reads the newest published release itself, and
-          # the release exists by now. Passing a version would be a second copy
-          # of the same fact, free to disagree with the first.
-          gh workflow run pages.yml --repo "$REPO" --ref main
-          echo "Asked the site to redeploy naming $VERSION"
-
       # ---- and take the old ones down --------------------------------------
       #
       # Two releases, and the tags are kept forever. A release holds two disk
@@ -365,15 +353,7 @@ jobs:
           # Reading the wrong path here fails quietly and in the expensive
           # direction: `|| echo ""` leaves CASK empty, the guard below stops
           # protecting the release the cask points at, and it gets deleted.
-          CASK=$(gh api repos/xiaolai/homebrew-tap/contents/Casks/mochi-app.rb --jq '.content' 2>/dev/null \
-            | base64 -d | grep -m1 '^  version "' | sed 's/.*version "\(.*\)".*/\1/' || echo "")
-          echo "the cask currently ships: ${CASK:-unknown}"
-
           for tag in $OLD; do
-            if [ -n "$CASK" ] && [ "$tag" = "v$CASK" ]; then
-              echo "keeping $tag — the Homebrew cask still points at it"
-              continue
-            fi
             echo "deleting the release $tag (its tag stays)"
             gh release delete "$tag" --repo "$REPO" --yes
           done

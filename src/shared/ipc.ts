@@ -288,6 +288,8 @@ export const SETTINGS_CHANNELS = [
   'settings:check-update',
   'settings:download-update',
   'settings:install-update',
+  /** Whether launch and periodic checks may also download a newer build. */
+  'settings:auto-update',
   /**
    * Change how a lookup runs — the workspace, web search, the Codex profile.
    *
@@ -1080,6 +1082,8 @@ export interface SettingsView {
   readonly about: SettingsAbout
   /** Whether there is a newer build. See `SettingsUpdate`. */
   readonly update: SettingsUpdate
+  /** Whether a newer build may be downloaded without a separate press. */
+  readonly autoUpdate: boolean
   /** Named for display. Opening one goes through `settings:reveal` by kind. */
   readonly folders: Readonly<Record<Revealable, string>>
 }
@@ -1181,6 +1185,8 @@ export interface MochiSettingsApi {
   openLink(what: Link): void
   /** Look. Answers with what it found; nothing is fetched. */
   checkUpdate(): Promise<SettingsUpdate>
+  /** Persist the choice and apply it to the current update schedule. */
+  setAutoUpdate(enabled: boolean): Promise<SettingsWrite>
   /** Fetch it. Resolves when the download has landed, not when it starts. */
   downloadUpdate(): Promise<SettingsUpdate>
   /** Quit and install what was downloaded. Returns only if it declined to. */

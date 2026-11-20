@@ -2007,7 +2007,7 @@ async function checks(page, where = '') {
     */
     await goTo(page, 'machine')
     await page.run(
-      `(() => { const t = document.querySelectorAll('#nav-groups .tab')[6]; if (t) t.click(); return true })()`,
+      `(() => { const t = document.querySelectorAll('#nav-groups .tab')[7]; if (t) t.click(); return true })()`,
     )
     await settle(page)
     const rows = `[...document.querySelectorAll('#machine-pane .about-link')]`
@@ -2024,6 +2024,17 @@ async function checks(page, where = '') {
       bad(
         'about-links',
         `expected ${want.join(', ')}, saw ${JSON.stringify(shape.map((r) => r.what))}`,
+      )
+      return
+    }
+    const automatic = await page.run(`(() => {
+      const control = document.querySelector('#automatic-updates')
+      return control ? { checked: control.checked, label: control.nextElementSibling?.textContent } : null
+    })()`)
+    if (automatic?.checked !== false || automatic.label !== 'Download new versions automatically') {
+      bad(
+        'auto-updates',
+        `expected an opt-in switch that is initially off: ${JSON.stringify(automatic)}`,
       )
       return
     }

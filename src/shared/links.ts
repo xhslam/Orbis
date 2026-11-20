@@ -13,7 +13,7 @@
  * ## Why they are not read from `package.json`
  *
  * Two of them are in there, in a shape that is not a link: `repository.url` is
- * `git+https://…/mochi.git`, which has to have two pieces cut off it before a
+ * `git+https://…/Orbis.git`, which has to have two pieces cut off it before a
  * browser will take it, and `homepage` is the author's site rather than the
  * application's. The third is in `site/CNAME`, which is not bundled at all.
  *
@@ -25,7 +25,7 @@ export const LINKS = {
   /** Who made it. `package.json`'s `homepage`, which is a person's site. */
   author: 'https://lixiaolai.com',
   /** The source. `package.json`'s `repository.url`, made browsable. */
-  repo: 'https://github.com/xiaolai/mochi',
+  repo: 'https://github.com/xhslam/Orbis',
   /** The application's own site. `site/CNAME`, which `pages.yml` also asserts. */
   site: 'https://moch.im',
 } as const

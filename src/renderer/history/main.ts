@@ -76,6 +76,7 @@ import {
   pickEl,
   pickOffEl,
   queryEl,
+  saidEl,
   sureEl,
   sureNoEl,
   sureWhatEl,
@@ -248,6 +249,7 @@ function showPicking(): void {
     the only place that knows whether any is on screen.
   */
   statusEl.classList.toggle('acts', here && (any || on))
+  statusEl.classList.toggle('needed', here && (any || on))
 }
 
 function stopPicking(): void {
@@ -1090,6 +1092,11 @@ function showPlace(next: Place): void {
   // T3: leaving the archive cancels picking. The rule is `rules/picking.ts`'s.
   picking.wentTo(place)
   showPicking()
+  statusEl.classList.toggle(
+    'needed',
+    (place === 'archive' && (conversations.length > 0 || picking.on())) ||
+      troublesEl.hidden === false,
+  )
   /*
     Her sheet repaints the open character on arrival.
 
@@ -2565,7 +2572,10 @@ function readProblemCount(): void {
         has gone wrong" is an answer; an absence is not.
       */
       const many = problems.length
-      troublesEl.hidden = false
+      if (many === 0 && !statusEl.classList.contains('acts') && saidEl.hidden) {
+        statusEl.classList.remove('needed')
+      }
+      troublesEl.hidden = many === 0
       troublesEl.classList.toggle('quiet', many === 0)
       troublesEl.disabled = many === 0
       troublesLabelEl.textContent =
@@ -2635,6 +2645,11 @@ const machineHandlers: PaneHandlers = {
     const found = await window.mochiSettings.downloadUpdate()
     await loadMachine()
     return found
+  },
+  setAutoUpdate: async (enabled) => {
+    const result = await window.mochiSettings.setAutoUpdate(enabled)
+    await loadMachine()
+    return result
   },
   installUpdate: () => {
     window.mochiSettings.installUpdate()

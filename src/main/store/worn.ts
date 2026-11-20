@@ -739,6 +739,14 @@ export function readShoulderChip(userData: string): boolean {
   return found !== false
 }
 
+export function readAutoUpdate(userData: string): boolean {
+  return preferences(userData)?.['autoUpdate'] === true
+}
+
+export function writeAutoUpdate(userData: string, enabled: boolean): void {
+  writeMerged(userData, { autoUpdate: enabled })
+}
+
 /** What a screen setting may be changed to. Absent means unchanged. */
 export interface ScreenWrite {
   readonly halo?: HaloWhen

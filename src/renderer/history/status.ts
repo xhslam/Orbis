@@ -49,6 +49,8 @@ function hush(): void {
 }
 
 export function say(text: string, bad = false): void {
+  const status = document.getElementById('status')
+  if (status !== null) status.classList.add('needed')
   saidEl.classList.toggle('bad', bad)
   /*
     THE WAY OUT, revealed with the line it dismisses.

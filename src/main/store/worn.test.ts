@@ -11,6 +11,7 @@ import {
   isProfileName,
   markBubbleSideMigrated,
   readHaloWhen,
+  readAutoUpdate,
   readHerPlace,
   readLegacyBubbleSide,
   readProfile,
@@ -23,6 +24,7 @@ import {
   readTurnTaking,
   readWornPersonaId,
   writeHerPlace,
+  writeAutoUpdate,
   writeLookup,
   writeResting,
   writeScreen,
@@ -35,6 +37,18 @@ import {
 let userData = ''
 beforeEach(() => {
   userData = mkdtempSync(join(tmpdir(), 'mochi-worn-'))
+})
+
+describe('whether updates may download themselves', () => {
+  it('defaults to off until the user opts in', () => {
+    expect(readAutoUpdate(userData)).toBe(false)
+    writeAutoUpdate(userData, false)
+    expect(readAutoUpdate(userData)).toBe(false)
+    writeAutoUpdate(userData, true)
+    expect(readAutoUpdate(userData)).toBe(true)
+    writePreferences({ autoUpdate: 'yes' })
+    expect(readAutoUpdate(userData)).toBe(false)
+  })
 })
 afterEach(() => {
   rmSync(userData, { recursive: true, force: true })

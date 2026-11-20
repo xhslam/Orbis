@@ -98,6 +98,7 @@ export interface Answers {
   'settings:codex-recheck': SettingsCodex
   'settings:check-update': SettingsUpdate
   'settings:download-update': SettingsUpdate
+  'settings:auto-update': SettingsWrite
 }
 
 /** Every channel that owes the renderer an answer. */

@@ -403,21 +403,15 @@ describe('the vocabulary that is declared and not yet spoken', () => {
 })
 
 /**
- * The frame's colour before the document paints, bound to the page's.
+ * The frame's transparency before the rounded document paints.
  *
- * The shelf is created already shown, so `BrowserWindow`'s `backgroundColor` is
- * what somebody sees for the moment between the window appearing and the first
- * paint. It held v1's warm paper for the whole of the v2 port — `#f7f6f1` — so
- * opening the window flashed warm grey in the build whose palette claims neutral
- * grey with no warmth at all. Nothing could have caught it: it is a colour in
- * main, and every check in this file reads stylesheets.
+ * The shelf is created already shown. Its outer margin is transparent so the
+ * rounded page can expose the desktop; the page itself still paints `--paper`.
  *
- * Hardcoded there rather than read, for the reason `accent.ts` gives about its
- * own copy — main has parsed no stylesheet and can parse none. So this is the
- * binding, the same shape as the ring's geometry above: the constant stays where
- * it has to be and the claim that it matches becomes a thing that fails.
+ * These checks bind the two halves rather than allowing a transparent body to
+ * reveal a blank window through the rounded corners.
  */
-describe('the window opens in the page’s own colour', () => {
+describe('the window leaves a transparent margin around its rounded page', () => {
   const main = readFileSync(fileURLToPath(new URL('../main/window.ts', import.meta.url)), 'utf8')
 
   it('has both sides to compare', () => {
@@ -425,12 +419,12 @@ describe('the window opens in the page’s own colour', () => {
     expect(declared.get('--paper')).toBeDefined()
   })
 
-  it('uses the two halves of `--paper`, and no other colour', () => {
-    const paper = declared.get('--paper') ?? ''
-    const halves = /light-dark\(\s*(#[0-9a-f]{6})\s*,\s*(#[0-9a-f]{6})\s*\)/.exec(paper)
-    expect(halves, '--paper is not a light-dark pair').not.toBeNull()
+  it('makes only the outer frame transparent; the content owns the paper colour', () => {
     const line = /backgroundColor:[^,\n]*/.exec(main)?.[0] ?? ''
-    expect(line).toContain(halves?.[1] ?? 'no-light-half')
-    expect(line).toContain(halves?.[2] ?? 'no-dark-half')
+    expect(line).toContain('#00000000')
+    const history = SHEETS.find(([where]) => where === 'history/index.html')?.[1] ?? ''
+    expect(history).toMatch(/body\s*\{[^}]*background:\s*transparent/)
+    expect(history).toMatch(/#app\s*\{[^}]*background:\s*var\(--paper\)/)
+    expect(history).toMatch(/#app\s*\{[^}]*border-radius:/)
   })
 })

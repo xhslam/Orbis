@@ -17,7 +17,7 @@ const root = (path: string) =>
 describe('the three addresses, against their sources', () => {
   it('repo is the manifest’s repository, made browsable', () => {
     const manifest = JSON.parse(root('package.json'))
-    // `git+https://github.com/xiaolai/mochi.git` is what npm wants and what a
+    // `git+https://github.com/xhslam/Orbis.git` is what npm wants and what a
     // browser will not take. Both cuts are asserted rather than assumed.
     const browsable = manifest.repository.url.replace(/^git\+/, '').replace(/\.git$/, '')
     expect(LINKS.repo).toBe(browsable)

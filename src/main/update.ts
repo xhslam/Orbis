@@ -4,13 +4,11 @@ import type { SettingsUpdate } from '@shared/ipc'
 /**
  * Whether there is a newer build, and getting it if you want it.
  *
- * ## Nothing happens without being asked
+ * ## Downloading is a setting; installing is always a decision
  *
- * `autoDownload` is off and `autoInstallOnAppQuit` is off. She sits on somebody's
- * desktop all day; an application that quietly fetched 120MB and then replaced
- * itself on the next quit would be doing two things nobody asked for, one of
- * them on a metered connection. Three deliberate steps instead: look, fetch,
- * restart — each behind its own press.
+ * `autoDownload` is off and `autoInstallOnAppQuit` is off. The automatic-update
+ * preference runs the same check and download functions as the two buttons.
+ * Restarting to replace the running application always needs its own press.
  *
  * ## Why this is a module and not four lines in `index.ts`
  *
@@ -23,7 +21,7 @@ import type { SettingsUpdate } from '@shared/ipc'
  * ## The feed is the release this repository already publishes
  *
  * `electron-builder` writes `app-update.yml` into the bundle from the manifest's
- * repository field — `provider: github, owner: xiaolai, repo: mochi` — and
+ * repository field — `provider: github, owner: xhslam, repo: Orbis` — and
  * `release.yml` uploads the `latest-mac.yml` and the zips it points at. So there
  * is no endpoint configured anywhere: the updater reads the same release page a
  * person would.
@@ -37,6 +35,8 @@ import type { SettingsUpdate } from '@shared/ipc'
 
 /** What the last check or download established. Read by `settings:read`. */
 let state: SettingsUpdate = { kind: 'idle' }
+let checking: Promise<SettingsUpdate> | null = null
+let downloading: Promise<SettingsUpdate> | null = null
 
 export function updateState(): SettingsUpdate {
   /*
@@ -129,6 +129,14 @@ function possible(): boolean {
  * read is a second chance to draw something else.
  */
 export async function checkForUpdate(): Promise<SettingsUpdate> {
+  if (checking !== null) return checking
+  checking = performCheck().finally(() => {
+    checking = null
+  })
+  return checking
+}
+
+async function performCheck(): Promise<SettingsUpdate> {
   if (!possible()) {
     state = { kind: 'unsupported' }
     return state
@@ -159,6 +167,14 @@ export async function checkForUpdate(): Promise<SettingsUpdate> {
  * at once.
  */
 export async function downloadUpdate(): Promise<SettingsUpdate> {
+  if (downloading !== null) return downloading
+  downloading = performDownload().finally(() => {
+    downloading = null
+  })
+  return downloading
+}
+
+async function performDownload(): Promise<SettingsUpdate> {
   if (!possible()) {
     state = { kind: 'unsupported' }
     return state
@@ -191,4 +207,56 @@ export async function installUpdate(): Promise<void> {
   // installer after quitting. The second is the whole point; the first leaves
   // the ordinary quit path — and its flush of the open conversation — intact.
   autoUpdater.quitAndInstall(false, true)
+}
+
+export const AUTOMATIC_UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
+
+export interface AutomaticUpdateSchedule {
+  setEnabled(enabled: boolean): void
+  stop(): void
+}
+
+export function createAutomaticUpdateSchedule(options: {
+  enabled: () => boolean
+  check: () => Promise<SettingsUpdate>
+  download: () => Promise<SettingsUpdate>
+  every?: number
+  setTimeout?: typeof globalThis.setTimeout
+  setInterval?: typeof globalThis.setInterval
+  clearTimeout?: typeof globalThis.clearTimeout
+  clearInterval?: typeof globalThis.clearInterval
+}): AutomaticUpdateSchedule {
+  const after = options.setTimeout ?? globalThis.setTimeout
+  const every = options.setInterval ?? globalThis.setInterval
+  const cancelAfter = options.clearTimeout ?? globalThis.clearTimeout
+  const cancelEvery = options.clearInterval ?? globalThis.clearInterval
+  let launch: ReturnType<typeof setTimeout> | null = null
+  let recurring: ReturnType<typeof setInterval> | null = null
+
+  const run = () => {
+    void (async () => {
+      if (!options.enabled()) return
+      const found = await options.check()
+      if (options.enabled() && found.kind === 'available') await options.download()
+    })().catch((error: unknown) => {
+      console.warn('[update] automatic check failed:', error)
+    })
+  }
+  const stop = () => {
+    if (launch !== null) cancelAfter(launch)
+    if (recurring !== null) cancelEvery(recurring)
+    launch = null
+    recurring = null
+  }
+  return {
+    setEnabled(enabled) {
+      stop()
+      if (!enabled || !options.enabled()) return
+      launch = after(run, 30_000)
+      launch.unref()
+      recurring = every(run, options.every ?? AUTOMATIC_UPDATE_INTERVAL_MS)
+      recurring.unref()
+    },
+    stop,
+  }
 }

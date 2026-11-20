@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { app, BrowserWindow, nativeImage, nativeTheme, screen } from 'electron'
+import { app, BrowserWindow, nativeImage, screen } from 'electron'
 import { FEET_FROM_TOP, WINDOW_H, WINDOW_W, fullPad, originHolding } from '@shared/avatar-layout'
 import { containToWorkArea, KEEP_ON_SCREEN } from './drag'
 import { letDevToolsInspect } from './inspect'
@@ -695,6 +695,11 @@ export function showHistoryWindow(): BrowserWindow {
     */
     minWidth: 1120,
     minHeight: 680,
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hidden' as const, trafficLightPosition: { x: 12, y: 12 } }
+      : {}),
+    transparent: true,
+    backgroundColor: '#00000000',
     // Shown from the start — see `bringForward` for why waiting for the first
     // paint never returns here. The colour is what `ready-to-show` was for.
     /*
@@ -709,7 +714,6 @@ export function showHistoryWindow(): BrowserWindow {
       copy: this runs in main, where no stylesheet has been parsed and none can
       be. `design-values.test.ts` binds them to `--paper` so the two cannot drift.
     */
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#08080a' : '#ffffff',
     /*
       Named for the application, not for one of its three places.
 

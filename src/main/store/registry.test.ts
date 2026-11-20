@@ -83,6 +83,11 @@ const PREFERENCES: Readonly<Record<string, Declared>> = {
     because: 'the character cards on the shelf',
     provenBy: 'mochiHistory.wear',
   },
+  autoUpdate: {
+    kind: 'user-choice',
+    because: 'the automatic updates switch in the About pane',
+    provenBy: 'setAutoUpdate',
+  },
   grants: { kind: 'user-choice', because: 'the "May do" pane', provenBy: 'grant' },
   haloWhen: { kind: 'user-choice', because: 'the "On screen" pane', provenBy: 'haloWhen' },
   shoulderChip: { kind: 'user-choice', because: 'the "On screen" pane', provenBy: 'shoulderChip' },

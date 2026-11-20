@@ -31,7 +31,7 @@
       body {
         margin: 0;
         height: 100%;
-        background: var(--paper);
+        background: transparent;
         color: var(--ink);
         font: var(--t-ui) / 1.5 var(--sans);
         user-select: none;
@@ -162,8 +162,39 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+        margin: var(--s2);
+        border: var(--s-px) solid var(--rule);
+        border-radius: var(--s3);
+        background: var(--paper);
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
       }
-
+      .window-bar {
+        height: 44px;
+        position: absolute;
+        inset: var(--s2) var(--s2) auto;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 var(--s4);
+        border-bottom: 0;
+        background: var(--paper-3);
+        -webkit-app-region: drag;
+        app-region: drag;
+      }
+      .rail-toggle {
+        position: absolute;
+        top: var(--s1);
+        left: 92px;
+        z-index: 11;
+        -webkit-app-region: no-drag;
+        app-region: no-drag;
+      }
+      .rail .rail-toggle {
+        top: 0;
+        left: auto;
+      }
       /*
         Headings and machine-shaped text, which had no rule at all.
 
@@ -227,13 +258,13 @@
           than as a shape — the fill has to have somewhere to end. 12 either
           side is what the component is drawn with.
         */
-        padding: var(--s4) var(--s3) 14px;
+        padding: 52px var(--s3) 14px;
         overflow-y: auto;
         overflow-x: hidden;
         transition:
-          width 0.35s cubic-bezier(0.2, 0, 0, 1),
-          min-width 0.35s cubic-bezier(0.2, 0, 0, 1),
-          padding 0.35s cubic-bezier(0.2, 0, 0, 1);
+          width var(--duration) cubic-bezier(0.2, 0, 0, 1),
+          min-width var(--duration) cubic-bezier(0.2, 0, 0, 1),
+          padding var(--duration) cubic-bezier(0.2, 0, 0, 1);
         will-change: width, min-width;
       }
       .rail-top {
@@ -242,7 +273,7 @@
         justify-content: space-between;
         gap: var(--s2);
         margin-bottom: var(--s1);
-        min-height: 28px;
+        min-height: 36px;
       }
       .rail-toggle {
         display: inline-flex;
@@ -267,7 +298,7 @@
       }
       .rail-toggle-icon {
         display: block;
-        transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
+        transition: transform var(--duration) cubic-bezier(0.2, 0, 0, 1);
       }
       /* "Two characters" — a heading, and the only one in the rail. */
       /*
@@ -299,8 +330,8 @@
         white-space: nowrap;
         overflow: hidden;
         transition:
-          opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s,
-          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+          opacity var(--duration-fast) cubic-bezier(0.2, 0, 0, 1),
+          max-width var(--duration) cubic-bezier(0.2, 0, 0, 1);
       }
       /* The count is a machine fact and takes the machine face — it is not part
          of the heading beside it. */
@@ -329,12 +360,13 @@
         align-items: center;
         gap: var(--s3);
         width: 100%;
+        min-height: 36px;
         padding: var(--s3);
         margin-bottom: var(--s0);
         border: 0;
         /* Cards and fields. The row IS the card here — there is no box around
            it, so the roundness is what says one row is one thing. */
-        border-radius: var(--r-card);
+        border-radius: var(--r-part);
         background: transparent;
         color: inherit;
         font: inherit;
@@ -354,10 +386,10 @@
         readers.
       */
       .rail-row:hover {
-        background: var(--paper);
+        background: var(--chosen-2);
       }
       .rail-row[aria-current='true'] {
-        background: var(--chosen);
+        background: var(--chosen-2);
       }
       /*
         Rule 6 — "the machine gets none of her colour" — is now true of every row
@@ -412,8 +444,8 @@
         overflow: hidden;
         white-space: nowrap;
         transition:
-          opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s,
-          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+          opacity var(--duration-fast) cubic-bezier(0.2, 0, 0, 1),
+          max-width var(--duration) cubic-bezier(0.2, 0, 0, 1);
         max-width: 140px;
       }
       .rail-name {
@@ -426,8 +458,8 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         transition:
-          opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s,
-          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+          opacity var(--duration-fast) cubic-bezier(0.2, 0, 0, 1),
+          max-width var(--duration) cubic-bezier(0.2, 0, 0, 1);
       }
       /*
         The second line under a name, and it is MONO now.
@@ -449,7 +481,7 @@
         font-size: var(--t-micro);
         margin-top: var(--s-px);
         color: var(--ink-3);
-        transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s;
+        transition: opacity var(--duration-fast) cubic-bezier(0.2, 0, 0, 1);
       }
       /*
         The machine's mark: a 30px rounded tile with a 12px square outlined in
@@ -460,30 +492,39 @@
       */
       .rail-tile {
         flex: none;
-        width: 30px;
-        height: 30px;
-        border-radius: 9px;
-        background: var(--rule);
+        width: 24px;
+        height: 24px;
+        border-radius: var(--r-part);
+        background: transparent;
         display: flex;
         align-items: center;
         justify-content: center;
+        color: var(--ink-2);
       }
       .rail-tile::before {
         content: '';
-        width: var(--s3);
-        height: var(--s3);
+        width: var(--s4);
+        height: var(--s4);
         border-radius: 3px;
         border: 1.5px solid var(--ink-2);
       }
+      .rail-tile svg {
+        width: 20px;
+        height: 20px;
+        display: block;
+      }
+      .rail-tile:has(svg)::before {
+        display: none;
+      }
       .rail-machine[aria-current='true'] .rail-tile,
       .rail-reading[aria-current='true'] .rail-tile {
-        background: var(--paper);
+        background: transparent;
       }
       .rail-machine[aria-current='true'] .rail-tile::before {
         border-color: var(--ink);
       }
       .rail-reading .rail-tile {
-        font-size: var(--t-lead);
+        font-size: 20px;
       }
       .rail-reading .rail-tile::before {
         display: none;
@@ -525,9 +566,9 @@
         max-height: 54px;
         overflow: hidden;
         transition:
-          opacity 0.2s cubic-bezier(0.2, 0, 0, 1) 0.1s,
-          max-height 0.35s cubic-bezier(0.2, 0, 0, 1),
-          padding 0.35s cubic-bezier(0.2, 0, 0, 1);
+          opacity var(--duration-fast) cubic-bezier(0.2, 0, 0, 1),
+          max-height var(--duration) cubic-bezier(0.2, 0, 0, 1),
+          padding var(--duration) cubic-bezier(0.2, 0, 0, 1);
       }
       /*
         THE PADDING, and nothing else — it is `button.btn` for everything else.
@@ -565,16 +606,17 @@
         height: var(--s-px);
         background: var(--rule);
         margin: var(--s4) var(--s2) var(--s2);
-        transition: margin 0.35s cubic-bezier(0.2, 0, 0, 1);
+        transition: margin var(--duration) cubic-bezier(0.2, 0, 0, 1);
       }
       /* Collapsed rail state: progressive icon-rail collapse */
       .rail.collapsed {
-        width: 62px;
-        min-width: 62px;
-        padding: var(--s4) var(--s2) 14px;
+        width: 52px;
+        min-width: 52px;
+        padding: 52px var(--s2) var(--s4);
       }
       .rail.collapsed .rail-top {
         justify-content: center;
+        min-height: 36px;
         margin-bottom: var(--s2);
       }
       .rail.collapsed .rail-head {
@@ -583,42 +625,47 @@
         padding: 0;
         pointer-events: none;
         transition:
-          opacity 0.15s ease-out,
-          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+          opacity var(--duration-fast) ease-out,
+          max-width var(--duration) cubic-bezier(0.2, 0, 0, 1);
       }
       .rail.collapsed .rail-toggle {
+        width: 36px;
+        height: 36px;
         margin: 0 auto;
+        border-radius: var(--r-part);
       }
       .rail.collapsed .rail-toggle-icon {
         transform: scaleX(-1);
       }
       .rail.collapsed .rail-row {
-        padding: var(--s2) 0;
+        min-height: 36px;
+        padding: var(--s1);
         justify-content: center;
         gap: 0;
+        margin-bottom: var(--s1);
       }
       .rail.collapsed .rail-titles {
         opacity: 0;
         max-width: 0;
         pointer-events: none;
         transition:
-          opacity 0.15s ease-out,
-          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+          opacity var(--duration-fast) ease-out,
+          max-width var(--duration) cubic-bezier(0.2, 0, 0, 1);
       }
       .rail.collapsed .rail-name {
         opacity: 0;
         max-width: 0;
         pointer-events: none;
         transition:
-          opacity 0.15s ease-out,
-          max-width 0.35s cubic-bezier(0.2, 0, 0, 1);
+          opacity var(--duration-fast) ease-out,
+          max-width var(--duration) cubic-bezier(0.2, 0, 0, 1);
       }
       .rail.collapsed .rail-worn,
       .rail.collapsed .rail-mark {
         opacity: 0;
         display: none;
         pointer-events: none;
-        transition: opacity 0.15s ease-out;
+        transition: opacity var(--duration-fast) ease-out;
       }
       .rail.collapsed .rail-make {
         opacity: 0;
@@ -626,13 +673,23 @@
         padding: 0;
         pointer-events: none;
         transition:
-          opacity 0.15s ease-out,
-          max-height 0.35s cubic-bezier(0.2, 0, 0, 1),
-          padding 0.35s ease;
+          opacity var(--duration-fast) ease-out,
+          max-height var(--duration) cubic-bezier(0.2, 0, 0, 1),
+          padding var(--duration) ease;
       }
       .rail.collapsed .rail-row .tile,
       .rail.collapsed .rail-row .rail-tile {
         margin: 0 auto;
+      }
+      .rail.collapsed .rail-row .tile {
+        width: 28px;
+        height: 28px;
+      }
+      .rail.collapsed .rail-row:not(.faceless) .tile {
+        width: var(--s5);
+        height: var(--s5);
+        max-width: var(--s5);
+        max-height: var(--s5);
       }
       .rail.collapsed .rail-rule {
         margin: var(--s3) var(--s1) var(--s2);
@@ -1168,6 +1225,7 @@
         min-width: 0;
         display: flex;
         flex-direction: column;
+        padding-top: 44px;
       }
       .page {
         flex: 1;
@@ -4810,14 +4868,17 @@
         height: var(--status-h-acts);
       }
       .status {
+        display: none;
         height: var(--status-h);
         flex: none;
-        display: flex;
         align-items: center;
         justify-content: space-between;
         gap: var(--s5);
         padding: 0 var(--s6);
         border-top: var(--s-px) solid var(--rule);
+      }
+      .status.needed {
+        display: flex;
       }
       /*
         THE RECEIPT IS A SENTENCE, and it is set like one.
@@ -4942,6 +5003,7 @@
       its own page because it is not about her.
     -->
     <div id="app">
+      <header class="window-bar" aria-label="Window"></header>
       <!--
         NO STRIP ACROSS THE TOP.
 
@@ -5012,15 +5074,53 @@
               read it.
             -->
             <button class="rail-row rail-reading" id="rail-reading" type="button">
-              <span class="rail-tile" aria-hidden="true">📖</span>
+              <span class="rail-tile" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 5c-2.5-2-6-2-9-1v15c3-1 6.5-1 9 1 2.5-2 6-2 9-1V4c-3-1-6.5-1-9 1Z" />
+                  <path d="M12 5v15" />
+                </svg>
+              </span>
               <span class="rail-name">Reading</span>
             </button>
             <button class="rail-row rail-reading" id="rail-retell" type="button">
-              <span class="rail-tile" aria-hidden="true">🗣</span>
+              <span class="rail-tile" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" />
+                  <path d="M19 11v1a7 7 0 0 1-14 0v-1M12 19v3M8 22h8" />
+                </svg>
+              </span>
               <span class="rail-name">Retelling</span>
             </button>
             <button class="rail-row rail-machine" id="rail-machine" type="button">
-              <span class="rail-tile" aria-hidden="true"></span>
+              <span class="rail-tile" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"
+                  />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </span>
               <span class="rail-name">This machine</span>
             </button>
           </div>

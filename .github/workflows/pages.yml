@@ -45,7 +45,7 @@ name: pages
 
 on:
   push:
-    branches: [main]
+    branches: []
     # Only when the site actually changes. Every other commit rebuilding and
     # redeploying an identical tree is noise in the deployment history, which
     # is the one place you look when a deploy went wrong.
